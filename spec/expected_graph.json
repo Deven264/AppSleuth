@@ -1,0 +1,282 @@
+{
+  "schemaVersion": "1.0",
+  "appVersion": "1.0.0",
+  "description": "Expected behavioral graph for AppSleuth demo app. Defines all valid states, transitions, and outcomes for the SendEmailWithAttachment workflow. Generated from app source code after implementation.",
+  "workflows": [
+    {
+      "id": "wf_send_email_attachment",
+      "name": "SendEmailWithAttachment",
+      "description": "User composes and sends an email with a PDF attachment.",
+      "entryNode": "n_session_start",
+      "terminalNodes": ["n_email_sent", "n_upload_failed_terminal"],
+      "nodes": [
+        {
+          "id": "n_session_start",
+          "type": "SESSION_START",
+          "label": "SessionStart",
+          "expectedOutcome": "SUCCESS",
+          "description": "Application process started. Diagnostic session initialized.",
+          "expectedMetadata": {
+            "appVersion": "1.0.0"
+          }
+        },
+        {
+          "id": "n_screen_main",
+          "type": "SCREEN_VIEW",
+          "label": "Screen:MainActivity",
+          "expectedOutcome": "SUCCESS",
+          "description": "User is on the main screen. The Compose Email button is visible.",
+          "expectedMetadata": {
+            "activityClass": "com.appsleuth.demo.MainActivity"
+          }
+        },
+        {
+          "id": "n_tap_compose",
+          "type": "USER_ACTION",
+          "label": "TapComposeEmail",
+          "expectedOutcome": "SUCCESS",
+          "description": "User tapped the Compose Email button on MainActivity."
+        },
+        {
+          "id": "n_screen_compose",
+          "type": "SCREEN_VIEW",
+          "label": "Screen:ComposeEmailActivity",
+          "expectedOutcome": "SUCCESS",
+          "description": "Compose email screen is shown. Attachment (report_Q3_2024.pdf) is pre-selected.",
+          "expectedMetadata": {
+            "activityClass": "com.appsleuth.demo.ComposeEmailActivity"
+          }
+        },
+        {
+          "id": "n_tap_send",
+          "type": "USER_ACTION",
+          "label": "TapSendEmail",
+          "expectedOutcome": "SUCCESS",
+          "description": "User filled in recipient and subject, then tapped Send Email.",
+          "expectedMetadata": {
+            "hasAttachment": true,
+            "attachmentName": "report_Q3_2024.pdf"
+          },
+          "validationRules": [
+            "recipient must be non-empty",
+            "subject must be non-empty"
+          ]
+        },
+        {
+          "id": "n_state_uploading",
+          "type": "STATE_CHANGE",
+          "label": "StateChange:Uploading",
+          "expectedOutcome": "PENDING",
+          "description": "App entered the uploading state. Progress bar is visible, Send button is disabled. Network call is about to begin.",
+          "expectedMetadata": {
+            "uiState": "loading"
+          }
+        },
+        {
+          "id": "n_api_call_upload",
+          "type": "API_CALL",
+          "label": "ApiCall:/api/upload",
+          "expectedOutcome": "PENDING",
+          "description": "HTTP POST to /api/upload initiated with PDF attachment as multipart/form-data.",
+          "expectedMetadata": {
+            "method": "POST",
+            "urlPath": "/api/upload"
+          },
+          "constraints": {
+            "mustFollowNode": "n_state_uploading",
+            "timeoutThresholdMs": 10000
+          }
+        },
+        {
+          "id": "n_api_result_success",
+          "type": "API_RESULT",
+          "label": "ApiResult:/api/upload",
+          "expectedOutcome": "SUCCESS",
+          "description": "Upload API returned HTTP 200. Attachment successfully uploaded.",
+          "expectedMetadata": {
+            "httpCode": 200,
+            "success": true
+          },
+          "happyPath": true
+        },
+        {
+          "id": "n_email_sent",
+          "type": "STATE_CHANGE",
+          "label": "StateChange:EmailSent",
+          "expectedOutcome": "SUCCESS",
+          "description": "Email was sent successfully. UI shows success feedback. Activity finishes.",
+          "expectedMetadata": {
+            "uiState": "success"
+          },
+          "isTerminal": true,
+          "happyPath": true
+        },
+        {
+          "id": "n_api_result_timeout",
+          "type": "API_RESULT",
+          "label": "ApiResult:TIMEOUT:/api/upload",
+          "expectedOutcome": "TIMEOUT",
+          "description": "Upload API call timed out. SocketTimeoutException thrown after read timeout elapsed.",
+          "expectedMetadata": {
+            "error": "SocketTimeoutException"
+          },
+          "isKnownFailureMode": true,
+          "knownCauses": [
+            "Server is slow or overloaded",
+            "Large file exceeding server processing time",
+            "Network connectivity degraded",
+            "Application bug: timeout threshold too low for the operation"
+          ]
+        },
+        {
+          "id": "n_api_result_http_error",
+          "type": "API_RESULT",
+          "label": "ApiResult:/api/upload",
+          "expectedOutcome": "FAILURE",
+          "description": "Upload API returned a non-2xx HTTP status code.",
+          "expectedMetadata": {
+            "success": false
+          },
+          "isKnownFailureMode": true,
+          "knownCauses": [
+            "Server rejected the file (e.g., 413 Payload Too Large)",
+            "Authentication error (401/403)",
+            "Server-side error (500)"
+          ]
+        },
+        {
+          "id": "n_upload_failed_terminal",
+          "type": "STATE_CHANGE",
+          "label": "StateChange:UploadFailed",
+          "expectedOutcome": "TIMEOUT",
+          "description": "Upload failed. UI shows error toast. Progress bar hidden, Send button re-enabled. User can retry.",
+          "expectedMetadata": {
+            "uiState": "error",
+            "reason": "upload_timeout",
+            "expected": "StateChange:EmailSent"
+          },
+          "isTerminal": true,
+          "isKnownFailureMode": true
+        }
+      ],
+      "edges": [
+        {
+          "from": "n_session_start",
+          "to": "n_screen_main",
+          "label": "navigated_to",
+          "description": "App launched and reached MainActivity"
+        },
+        {
+          "from": "n_screen_main",
+          "to": "n_tap_compose",
+          "label": "user_triggered",
+          "description": "User tapped Compose Email"
+        },
+        {
+          "from": "n_tap_compose",
+          "to": "n_screen_compose",
+          "label": "navigated_to",
+          "description": "ComposeEmailActivity started"
+        },
+        {
+          "from": "n_screen_compose",
+          "to": "n_tap_send",
+          "label": "user_triggered",
+          "description": "User filled fields and tapped Send"
+        },
+        {
+          "from": "n_tap_send",
+          "to": "n_state_uploading",
+          "label": "state_changed",
+          "description": "App entered uploading state"
+        },
+        {
+          "from": "n_state_uploading",
+          "to": "n_api_call_upload",
+          "label": "api_initiated",
+          "description": "HTTP upload request sent"
+        },
+        {
+          "from": "n_api_call_upload",
+          "to": "n_api_result_success",
+          "label": "api_responded",
+          "path": "happy_path",
+          "description": "Server responded with 200 OK"
+        },
+        {
+          "from": "n_api_result_success",
+          "to": "n_email_sent",
+          "label": "state_changed",
+          "path": "happy_path",
+          "description": "App transitioned to EmailSent state"
+        },
+        {
+          "from": "n_api_call_upload",
+          "to": "n_api_result_timeout",
+          "label": "api_responded",
+          "path": "timeout_failure_path",
+          "description": "SocketTimeoutException thrown — server did not respond in time"
+        },
+        {
+          "from": "n_api_result_timeout",
+          "to": "n_upload_failed_terminal",
+          "label": "state_changed",
+          "path": "timeout_failure_path",
+          "description": "App transitioned to UploadFailed state"
+        },
+        {
+          "from": "n_api_call_upload",
+          "to": "n_api_result_http_error",
+          "label": "api_responded",
+          "path": "http_error_path",
+          "description": "Server returned non-2xx status code"
+        }
+      ],
+      "paths": {
+        "happy_path": {
+          "description": "Complete successful email send with attachment",
+          "sequence": [
+            "n_session_start",
+            "n_screen_main",
+            "n_tap_compose",
+            "n_screen_compose",
+            "n_tap_send",
+            "n_state_uploading",
+            "n_api_call_upload",
+            "n_api_result_success",
+            "n_email_sent"
+          ]
+        },
+        "timeout_failure_path": {
+          "description": "Upload times out — known failure mode",
+          "divergesFromHappyPathAt": "n_api_call_upload",
+          "sequence": [
+            "n_session_start",
+            "n_screen_main",
+            "n_tap_compose",
+            "n_screen_compose",
+            "n_tap_send",
+            "n_state_uploading",
+            "n_api_call_upload",
+            "n_api_result_timeout",
+            "n_upload_failed_terminal"
+          ]
+        },
+        "http_error_path": {
+          "description": "Server returns a non-2xx HTTP error",
+          "divergesFromHappyPathAt": "n_api_call_upload",
+          "sequence": [
+            "n_session_start",
+            "n_screen_main",
+            "n_tap_compose",
+            "n_screen_compose",
+            "n_tap_send",
+            "n_state_uploading",
+            "n_api_call_upload",
+            "n_api_result_http_error"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: var(--background); color: var(--foreground); overflow: hidden; height: 100vh; display: flex; flex-direction: column; font-family: sans-serif; }
+    #c { display: block; flex: 1; }
+  </style>
+</head>
+<body>
+
+<!-- ─── Toolbar ─── -->
+<div class="flex items-center gap-2 px-4 py-2 border-b border-[var(--border)] bg-[var(--card)] flex-wrap" style="flex-shrink:0">
+  <div class="mr-2">
+    <p class="font-bold text-sm text-[var(--foreground)]">AppSleuth — 3D Behavioral Graph</p>
+    <p class="text-xs text-[var(--muted-foreground)]">SendEmailWithAttachment · v1.0.0</p>
+  </div>
+  <div class="flex gap-1 flex-wrap">
+    <button data-filter="all"      class="filter-btn active px-2 py-1 text-xs rounded border border-[var(--border)]">All paths</button>
+    <button data-filter="happy"    class="filter-btn px-2 py-1 text-xs rounded border border-[var(--border)]">✅ Happy</button>
+    <button data-filter="timeout"  class="filter-btn px-2 py-1 text-xs rounded border border-[var(--border)]">⏱ Timeout</button>
+    <button data-filter="error"    class="filter-btn px-2 py-1 text-xs rounded border border-[var(--border)]">❌ HTTP Error</button>
+  </div>
+  <div class="flex gap-1 ml-auto flex-wrap">
+    <button id="btn-spin"  class="px-2 py-1 text-xs rounded border border-[var(--border)]">⏸ Pause</button>
+    <button id="btn-front" class="px-2 py-1 text-xs rounded border border-[var(--border)]">Front</button>
+    <button id="btn-top"   class="px-2 py-1 text-xs rounded border border-[var(--border)]">Top</button>
+    <button id="btn-side"  class="px-2 py-1 text-xs rounded border border-[var(--border)]">Side</button>
+    <button id="btn-reset" class="px-2 py-1 text-xs rounded border border-[var(--border)]">⟳ Reset</button>
+  </div>
+</div>
+
+<!-- ─── Legend ─── -->
+<div class="flex items-center gap-3 px-4 py-1 border-b border-[var(--border)] bg-[var(--card)] flex-wrap text-xs text-[var(--muted-foreground)]" style="flex-shrink:0">
+  <span>Types:</span>
+  <span class="flex items-center gap-1"><span style="width:8px;height:8px;border-radius:50%;background:#6366f1;display:inline-block"></span>Session</span>
+  <span class="flex items-center gap-1"><span style="width:8px;height:8px;border-radius:50%;background:#0ea5e9;display:inline-block"></span>Screen</span>
+  <span class="flex items-center gap-1"><span style="width:8px;height:8px;border-radius:50%;background:#f59e0b;display:inline-block"></span>User Action</span>
+  <span class="flex items-center gap-1"><span style="width:8px;height:8px;border-radius:50%;background:#8b5cf6;display:inline-block"></span>State</span>
+  <span class="flex items-center gap-1"><span style="width:8px;height:8px;border-radius:50%;background:#06b6d4;display:inline-block"></span>API Call</span>
+  <span class="flex items-center gap-1"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;display:inline-block"></span>Success</span>
+  <span class="flex items-center gap-1"><span style="width:8px;height:8px;border-radius:50%;background:#ef4444;display:inline-block"></span>Fail/Timeout</span>
+  <span class="ml-2">Paths:</span>
+  <span class="flex items-center gap-1"><span style="width:16px;height:2px;background:#22c55e;display:inline-block;vertical-align:middle"></span>Happy</span>
+  <span class="flex items-center gap-1"><span style="width:16px;height:2px;background:#f59e0b;display:inline-block;vertical-align:middle"></span>Timeout</span>
+  <span class="flex items-center gap-1"><span style="width:16px;height:2px;background:#ef4444;display:inline-block;vertical-align:middle"></span>HTTP Error</span>
+  <span class="ml-auto text-[var(--muted-foreground)]">Drag to orbit · Scroll to zoom · Click node for details</span>
+</div>
+
+<!-- ─── Canvas ─── -->
+<div style="position:relative;flex:1;overflow:hidden">
+  <canvas id="c"></canvas>
+
+  <!-- Detail Panel -->
+  <div id="panel" class="hidden absolute top-3 right-3 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-xl p-4" style="width:260px;max-height:420px;overflow-y:auto;z-index:10">
+    <div class="flex justify-between items-start mb-2">
+      <h3 id="p-title" class="font-bold text-sm text-[var(--foreground)] leading-tight pr-2"></h3>
+      <button id="p-close" class="text-xl leading-none text-[var(--muted-foreground)] hover:text-[var(--foreground)]">×</button>
+    </div>
+    <div id="p-type"    class="text-xs font-semibold mb-1"></div>
+    <div id="p-outcome" class="text-xs mb-2"></div>
+    <div id="p-desc"    class="text-xs text-[var(--muted-foreground)] mb-3 leading-relaxed"></div>
+    <div id="p-meta"    class="hidden mb-3">
+      <div class="text-xs font-semibold text-[var(--foreground)] mb-1">Metadata</div>
+      <pre id="p-meta-body" class="text-xs bg-[var(--background)] rounded p-2 text-[var(--muted-foreground)] whitespace-pre-wrap break-all leading-relaxed"></pre>
+    </div>
+    <div id="p-causes" class="hidden">
+      <div class="text-xs font-semibold text-[var(--foreground)] mb-1">Known Causes</div>
+      <ul id="p-causes-body" class="text-xs text-[var(--muted-foreground)] list-disc pl-4 space-y-0.5 leading-relaxed"></ul>
+    </div>
+  </div>
+
+  <!-- Crosshair hint -->
+  <div class="absolute bottom-3 left-3 text-xs text-[var(--muted-foreground)] bg-[var(--card)] border border-[var(--border)] px-3 py-1.5 rounded-lg">
+    🖱 Drag to orbit · Scroll to zoom
+  </div>
+</div>
+
+<script>
+/* ─── Graph Data ───────────────────────────────────────────────── */
+const NODES = [
+  { id:"n_session_start",      label:"Session\nStart",         type:"SESSION_START", outcome:"SUCCESS",  path:"all",
+    desc:"Application started. Diagnostic session initialized.", meta:{appVersion:"1.0.0"} },
+  { id:"n_screen_main",        label:"Screen:\nMainActivity",  type:"SCREEN_VIEW",   outcome:"SUCCESS",  path:"all",
+    desc:"User is on the main screen. Compose Email button visible.", meta:{activityClass:"...MainActivity"} },
+  { id:"n_tap_compose",        label:"Tap\nComposeEmail",      type:"USER_ACTION",   outcome:"SUCCESS",  path:"all",
+    desc:"User tapped the Compose Email button." },
+  { id:"n_screen_compose",     label:"Screen:\nComposeEmail",  type:"SCREEN_VIEW",   outcome:"SUCCESS",  path:"all",
+    desc:"Compose email screen shown. PDF attachment pre-selected.", meta:{activityClass:"...ComposeEmailActivity"} },
+  { id:"n_tap_send",           label:"Tap\nSendEmail",         type:"USER_ACTION",   outcome:"SUCCESS",  path:"all",
+    desc:"User filled fields and tapped Send.", meta:{hasAttachment:true,attachmentName:"report_Q3_2024.pdf"} },
+  { id:"n_state_uploading",    label:"State:\nUploading",      type:"STATE_CHANGE",  outcome:"PENDING",  path:"all",
+    desc:"App entered uploading state. Progress bar visible.", meta:{uiState:"loading"} },
+  { id:"n_api_call_upload",    label:"ApiCall:\n/api/upload",  type:"API_CALL",      outcome:"PENDING",  path:"all",
+    desc:"HTTP POST to /api/upload with PDF as multipart/form-data.", meta:{method:"POST",timeoutMs:10000}, isFork:true },
+  // Happy path
+  { id:"n_api_result_success", label:"ApiResult:\nSUCCESS",    type:"API_RESULT",    outcome:"SUCCESS",  path:"happy",
+    desc:"Upload API returned HTTP 200 OK.", meta:{httpCode:200,success:true} },
+  { id:"n_email_sent",         label:"State:\nEmailSent",      type:"STATE_CHANGE",  outcome:"SUCCESS",  path:"happy", isTerminal:true,
+    desc:"Email sent. UI shows success. Activity finishes.", meta:{uiState:"success"} },
+  // Timeout path
+  { id:"n_api_result_timeout", label:"ApiResult:\nTIMEOUT",    type:"API_RESULT",    outcome:"TIMEOUT",  path:"timeout",
+    desc:"Upload timed out. SocketTimeoutException thrown after read timeout.", meta:{error:"SocketTimeoutException"},
+    causes:["Server slow or overloaded","Large file exceeds server processing time","Network degraded","App bug: timeout threshold too low"] },
+  { id:"n_upload_failed",      label:"State:\nUploadFailed",   type:"STATE_CHANGE",  outcome:"TIMEOUT",  path:"timeout", isTerminal:true,
+    desc:"Upload failed. Error shown. User can retry.", meta:{uiState:"error",reason:"upload_timeout"} },
+  // HTTP error path
+  { id:"n_api_result_error",   label:"ApiResult:\nHTTP Error", type:"API_RESULT",    outcome:"FAILURE",  path:"error",  isTerminal:true,
+    desc:"Upload API returned non-2xx status.", meta:{success:false},
+    causes:["Server rejected file (413)","Auth error (401/403)","Server-side error (500)"] },
+];
+
+const EDGES = [
+  { from:"n_session_start",      to:"n_screen_main",        label:"navigated_to",   path:"all" },
+  { from:"n_screen_main",        to:"n_tap_compose",        label:"user_triggered", path:"all" },
+  { from:"n_tap_compose",        to:"n_screen_compose",     label:"navigated_to",   path:"all" },
+  { from:"n_screen_compose",     to:"n_tap_send",           label:"user_triggered", path:"all" },
+  { from:"n_tap_send",           to:"n_state_uploading",    label:"state_changed",  path:"all" },
+  { from:"n_state_uploading",    to:"n_api_call_upload",    label:"api_initiated",  path:"all" },
+  { from:"n_api_call_upload",    to:"n_api_result_success", label:"api_responded",  path:"happy" },
+  { from:"n_api_result_success", to:"n_email_sent",         label:"state_changed",  path:"happy" },
+  { from:"n_api_call_upload",    to:"n_api_result_timeout", label:"api_responded",  path:"timeout" },
+  { from:"n_api_result_timeout", to:"n_upload_failed",      label:"state_changed",  path:"timeout" },
+  { from:"n_api_call_upload",    to:"n_api_result_error",   label:"api_responded",  path:"error" },
+];
+
+/* ─── 3D positions (x, y, z) ──────────────────────────────────── */
+const POS3 = {
+  n_session_start:      [   0, -310,    0],
+  n_screen_main:        [   0, -230,    0],
+  n_tap_compose:        [   0, -150,    0],
+  n_screen_compose:     [   0,  -70,    0],
+  n_tap_send:           [   0,   10,    0],
+  n_state_uploading:    [   0,   90,    0],
+  n_api_call_upload:    [   0,  170,    0],
+  // Happy  — left + forward (toward viewer)
+  n_api_result_success: [-200,  270, -150],
+  n_email_sent:         [-200,  360, -150],
+  // Timeout — straight down (same spine)
+  n_api_result_timeout: [   0,  270,    0],
+  n_upload_failed:      [   0,  360,    0],
+  // HTTP error — right + backward
+  n_api_result_error:   [ 200,  270,  150],
+};
+
+const NODE_COLOR = {
+  SESSION_START:"#6366f1", SCREEN_VIEW:"#0ea5e9", USER_ACTION:"#f59e0b",
+  STATE_CHANGE:"#8b5cf6",  API_CALL:"#06b6d4",    API_RESULT:"#10b981"
+};
+const OUTCOME_COLOR = {SUCCESS:"#10b981",PENDING:"#94a3b8",TIMEOUT:"#f59e0b",FAILURE:"#ef4444"};
+const EDGE_COLOR = { all:"#94a3b8", happy:"#22c55e", timeout:"#f59e0b", error:"#ef4444" };
+
+/* ─── State ────────────────────────────────────────────────────── */
+let rotX = 0.22, rotY = 0.55;
+let zoom = 1;
+let autoSpin = true;
+let lastTime = 0;
+let dragging = false, lastMX = 0, lastMY = 0;
+let selected = null;
+let hovered  = null;
+let activeFilter = "all";
+
+/* ─── Canvas setup ─────────────────────────────────────────────── */
+const canvas = document.getElementById("c");
+const ctx    = canvas.getContext("2d");
+
+function resize() {
+  canvas.width  = canvas.parentElement.offsetWidth;
+  canvas.height = canvas.parentElement.offsetHeight;
+}
+window.addEventListener("resize", () => { resize(); draw(); });
+resize();
+
+/* ─── 3D math ──────────────────────────────────────────────────── */
+function rotateXY(x, y, z, rx, ry) {
+  // Y rotation
+  let x1 = x*Math.cos(ry) + z*Math.sin(ry);
+  let z1 =-x*Math.sin(ry) + z*Math.cos(ry);
+  // X rotation
+  let y2 = y*Math.cos(rx) - z1*Math.sin(rx);
+  let z2 = y*Math.sin(rx) + z1*Math.cos(rx);
+  return [x1, y2, z2];
+}
+
+function project(x, y, z) {
+  const fov = 900 * zoom;
+  const s   = fov / (fov + z + 200);
+  return {
+    sx: canvas.width/2  + x*s,
+    sy: canvas.height/2 + y*s,
+    s
+  };
+}
+
+/* ─── Color helpers ────────────────────────────────────────────── */
+function hexToRgb(h) {
+  return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+}
+function rgbToHex(r,g,b) {
+  return '#'+[r,g,b].map(v=>Math.max(0,Math.min(255,Math.round(v))).toString(16).padStart(2,'0')).join('');
+}
+function adjustColor(hex, amt) {
+  const [r,g,b]=hexToRgb(hex); return rgbToHex(r+amt,g+amt,b+amt);
+}
+function colorAlpha(hex, a) {
+  const [r,g,b]=hexToRgb(hex); return `rgba(${r},${g},${b},${a})`;
+}
+
+/* ─── Drawing ──────────────────────────────────────────────────── */
+function drawSphere(cx, cy, r, color, glow) {
+  // Outer glow
+  if (glow) {
+    const g0 = ctx.createRadialGradient(cx, cy, r*0.6, cx, cy, r*2.2);
+    g0.addColorStop(0, colorAlpha(color, 0.3));
+    g0.addColorStop(1, colorAlpha(color, 0));
+    ctx.beginPath(); ctx.arc(cx, cy, r*2.2, 0, Math.PI*2);
+    ctx.fillStyle = g0; ctx.fill();
+  }
+  // Shadow beneath
+  const gs = ctx.createRadialGradient(cx+r*0.2, cy+r*0.4, 0, cx+r*0.2, cy+r*0.4, r*1.2);
+  gs.addColorStop(0, colorAlpha('#000000', 0.3)); gs.addColorStop(1, colorAlpha('#000000', 0));
+  ctx.beginPath(); ctx.arc(cx+r*0.2, cy+r*0.4, r*1.2, 0, Math.PI*2);
+  ctx.fillStyle = gs; ctx.fill();
+  // Sphere body
+  const grad = ctx.createRadialGradient(cx-r*0.35, cy-r*0.35, r*0.05, cx, cy, r);
+  grad.addColorStop(0,   adjustColor(color,  80));
+  grad.addColorStop(0.4, adjustColor(color,  20));
+  grad.addColorStop(0.8, color);
+  grad.addColorStop(1,   adjustColor(color, -50));
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.fillStyle = grad; ctx.fill();
+  // Specular highlight
+  const hs = ctx.createRadialGradient(cx-r*0.3, cy-r*0.3, 0, cx-r*0.3, cy-r*0.3, r*0.5);
+  hs.addColorStop(0, 'rgba(255,255,255,0.65)'); hs.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.fillStyle = hs; ctx.fill();
+  // Rim light
+  ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI*2);
+  ctx.strokeStyle = colorAlpha(adjustColor(color, 40), 0.4);
+  ctx.lineWidth = 1.5; ctx.stroke();
+}
+
+function drawArrow3D(fx, fy, tx, ty, color, alpha, width) {
+  if (alpha <= 0) return;
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  const dx=tx-fx, dy=ty-fy, len=Math.sqrt(dx*dx+dy*dy);
+  if (len < 1) { ctx.restore(); return; }
+  const nx=dx/len, ny=dy/len;
+  ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(tx, ty);
+  ctx.strokeStyle = color; ctx.lineWidth = width;
+  ctx.lineCap = "round"; ctx.stroke();
+  // Arrowhead
+  const as = Math.max(6, width*4);
+  ctx.beginPath();
+  ctx.moveTo(tx, ty);
+  ctx.lineTo(tx-as*Math.cos(Math.atan2(dy,dx)-0.4), ty-as*Math.sin(Math.atan2(dy,dx)-0.4));
+  ctx.lineTo(tx-as*Math.cos(Math.atan2(dy,dx)+0.4), ty-as*Math.sin(Math.atan2(dy,dx)+0.4));
+  ctx.closePath(); ctx.fillStyle = color; ctx.fill();
+  ctx.restore();
+}
+
+/* ─── Computed projected positions ────────────────────────────── */
+function getProjected() {
+  return NODES.map(n => {
+    const [x, y, z] = POS3[n.id];
+    const [rx, ry, rz] = rotateXY(x, y, z, rotX, rotY);
+    const p = project(rx, ry, rz);
+    const baseColor = NODE_COLOR[n.type] || "#64748b";
+    const color = (n.outcome==="TIMEOUT"||n.outcome==="FAILURE") ? OUTCOME_COLOR[n.outcome] : baseColor;
+    return { ...n, px:p.sx, py:p.sy, ps:p.s, rz, color };
+  });
+}
+
+function isVisible(node) {
+  if (activeFilter === "all") return true;
+  return node.path === "all" || node.path === activeFilter;
+}
+function isEdgeVisible(edge) {
+  if (activeFilter === "all") return true;
+  return edge.path === "all" || edge.path === activeFilter;
+}
+
+function draw(ts=0) {
+  const dt = ts - lastTime; lastTime = ts;
+  if (autoSpin) { rotY += dt * 0.0003; }
+
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const projected = getProjected();
+  const nodeMap   = Object.fromEntries(projected.map(n => [n.id, n]));
+
+  // Depth-sort: draw back-to-front
+  const sorted = [...projected].sort((a,b) => b.rz - a.rz);
+
+  // ── Draw edges ──
+  EDGES.forEach(edge => {
+    if (!isEdgeVisible(edge)) return;
+    const fn = nodeMap[edge.from], tn = nodeMap[edge.to];
+    if (!isVisible(fn) || !isVisible(tn)) return;
+    const avgZ  = (fn.rz + tn.rz) / 2;
+    const alpha = Math.max(0.2, Math.min(0.9, 0.9 - avgZ/1200));
+    const color = EDGE_COLOR[edge.path] || EDGE_COLOR.all;
+    const sel   = selected && (selected.id===edge.from||selected.id===edge.to);
+    const fnr   = 22 * fn.ps, tnr = 22 * tn.ps;
+    const dx=tn.px-fn.px, dy=tn.py-fn.py, len=Math.sqrt(dx*dx+dy*dy);
+    if (len < 1) return;
+    const nx=dx/len, ny=dy/len;
+    const sx=fn.px+nx*fnr, sy=fn.py+ny*fnr, ex=tn.px-nx*tnr, ey=tn.py-ny*tnr;
+    drawArrow3D(sx, sy, ex, ey, color, sel ? 1 : alpha, sel ? 2.5*tn.ps : 1.5*tn.ps);
+  });
+
+  // ── Draw nodes (back to front) ──
+  sorted.forEach(node => {
+    if (!isVisible(node)) return;
+    const r     = 22 * node.ps;
+    const isSel = selected && selected.id === node.id;
+    const isHov = hovered  && hovered.id  === node.id;
+    const alpha = Math.max(0.3, Math.min(1, 1 - node.rz/1200));
+
+    ctx.save(); ctx.globalAlpha = alpha;
+    drawSphere(node.px, node.py, r * (isSel||isHov ? 1.2 : 1), node.color, isSel||isHov);
+    ctx.restore();
+
+    // Outcome dot
+    ctx.save(); ctx.globalAlpha = alpha;
+    ctx.beginPath(); ctx.arc(node.px+r*0.65, node.py-r*0.65, Math.max(3, 5*node.ps), 0, Math.PI*2);
+    ctx.fillStyle = OUTCOME_COLOR[node.outcome] || "#94a3b8"; ctx.fill();
+    ctx.restore();
+
+    // Terminal ring
+    if (node.isTerminal) {
+      ctx.save(); ctx.globalAlpha = alpha * 0.6;
+      ctx.beginPath(); ctx.arc(node.px, node.py, r*1.4, 0, Math.PI*2);
+      ctx.strokeStyle = node.color; ctx.lineWidth = 1.5*node.ps; ctx.stroke();
+      ctx.restore();
+    }
+
+    // Label
+    if (node.ps > 0.55) {
+      const lines    = node.label.split("\n");
+      const fontSize = Math.max(9, 10*node.ps);
+      ctx.save();
+      ctx.font = `bold ${fontSize}px sans-serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "top";
+      ctx.globalAlpha = alpha;
+      const isLight = document.documentElement.classList.contains("light");
+      ctx.fillStyle = isLight ? "#1e293b" : "#f1f5f9";
+      lines.forEach((ln, i) => ctx.fillText(ln, node.px, node.py + r + 4*node.ps + i*(fontSize+1)));
+      ctx.restore();
+    }
+  });
+
+  if (autoSpin) requestAnimationFrame(draw);
+}
+
+/* ─── Hit testing ──────────────────────────────────────────────── */
+function nodeAt(mx, my) {
+  const projected = getProjected();
+  // front to back for hit priority
+  return projected.filter(n=>isVisible(n)).sort((a,b)=>a.rz-b.rz).find(n => {
+    const r = 24 * n.ps;
+    return Math.hypot(mx-n.px, my-n.py) < r;
+  }) || null;
+}
+
+/* ─── Detail panel ─────────────────────────────────────────────── */
+function showPanel(node) {
+  document.getElementById("panel").classList.remove("hidden");
+  document.getElementById("p-title").textContent = node.label.replace(/\n/g," ");
+  const tc = NODE_COLOR[node.type]||"#64748b";
+  document.getElementById("p-type").innerHTML = `<span style="color:${tc}">${node.type.replace(/_/g," ")}</span>`;
+  const oc = OUTCOME_COLOR[node.outcome]||"#64748b";
+  document.getElementById("p-outcome").innerHTML =
+    `<span style="color:${oc};font-weight:600;">● ${node.outcome}</span>` +
+    (node.isTerminal ? ` <span style="color:var(--muted-foreground)">(terminal)</span>` : '') +
+    (node.isFork     ? ` <span style="color:#f59e0b">(fork point)</span>` : '');
+  document.getElementById("p-desc").textContent = node.desc || "";
+  const metaEl = document.getElementById("p-meta");
+  if (node.meta) {
+    metaEl.classList.remove("hidden");
+    document.getElementById("p-meta-body").textContent = JSON.stringify(node.meta, null, 2);
+  } else metaEl.classList.add("hidden");
+  const causesEl = document.getElementById("p-causes");
+  if (node.causes?.length) {
+    causesEl.classList.remove("hidden");
+    document.getElementById("p-causes-body").innerHTML = node.causes.map(c=>`<li>${c}</li>`).join("");
+  } else causesEl.classList.add("hidden");
+}
+
+document.getElementById("p-close").addEventListener("click", () => {
+  document.getElementById("panel").classList.add("hidden");
+  selected = null; if (!autoSpin) draw();
+});
+
+/* ─── Mouse events ─────────────────────────────────────────────── */
+canvas.addEventListener("mousedown", e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+  const node = nodeAt(mx, my);
+  if (node) { selected = node; showPanel(node); if (!autoSpin) draw(); }
+  else { dragging=true; lastMX=mx; lastMY=my; }
+});
+
+canvas.addEventListener("mousemove", e => {
+  const rect = canvas.getBoundingClientRect();
+  const mx=e.clientX-rect.left, my=e.clientY-rect.top;
+  if (dragging) {
+    rotY += (mx-lastMX)*0.007;
+    rotX += (my-lastMY)*0.007;
+    rotX  = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotX));
+    lastMX=mx; lastMY=my;
+    if (!autoSpin) draw();
+  } else {
+    const node = nodeAt(mx, my);
+    if (node !== hovered) { hovered=node; canvas.style.cursor=node?"pointer":"grab"; if (!autoSpin) draw(); }
+  }
+});
+
+canvas.addEventListener("mouseup",    () => dragging = false);
+canvas.addEventListener("mouseleave", () => { dragging=false; hovered=null; if (!autoSpin) draw(); });
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  zoom = Math.max(0.35, Math.min(3, zoom * (e.deltaY>0?0.92:1.09)));
+  if (!autoSpin) draw();
+}, { passive:false });
+
+// Touch support
+let lastTouchDist = null;
+canvas.addEventListener("touchstart", e => {
+  if (e.touches.length===1) { lastMX=e.touches[0].clientX; lastMY=e.touches[0].clientY; dragging=true; }
+}, { passive:true });
+canvas.addEventListener("touchmove", e => {
+  if (e.touches.length===1 && dragging) {
+    rotY += (e.touches[0].clientX-lastMX)*0.007;
+    rotX += (e.touches[0].clientY-lastMY)*0.007;
+    rotX  = Math.max(-Math.PI/2, Math.min(Math.PI/2, rotX));
+    lastMX=e.touches[0].clientX; lastMY=e.touches[0].clientY;
+    if (!autoSpin) draw();
+  } else if (e.touches.length===2) {
+    const d = Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+    if (lastTouchDist) zoom = Math.max(0.35,Math.min(3,zoom*(d/lastTouchDist)));
+    lastTouchDist = d; if (!autoSpin) draw();
+  }
+}, { passive:true });
+canvas.addEventListener("touchend", () => { dragging=false; lastTouchDist=null; });
+
+/* ─── Buttons ──────────────────────────────────────────────────── */
+function setActive(id) {
+  document.querySelectorAll(".filter-btn").forEach(b => {
+    b.style.background=""; b.style.color=""; b.classList.remove("active");
+  });
+  const b = document.querySelector(`[data-filter="${id}"]`);
+  if(b){b.style.background="var(--primary)";b.style.color="var(--primary-foreground)";}
+}
+
+document.querySelectorAll(".filter-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
+    activeFilter = btn.dataset.filter;
+    setActive(activeFilter);
+    if (!autoSpin) draw();
+  });
+});
+setActive("all");
+
+document.getElementById("btn-spin").addEventListener("click", () => {
+  autoSpin = !autoSpin;
+  document.getElementById("btn-spin").textContent = autoSpin ? "⏸ Pause" : "▶ Spin";
+  if (autoSpin) requestAnimationFrame(draw);
+  else draw();
+});
+
+const VIEWS = {
+  "btn-front": [0.22,  0.55],
+  "btn-top":   [-1.4,  0.0],
+  "btn-side":  [0.0,   1.57],
+  "btn-reset": [0.22,  0.55],
+};
+Object.entries(VIEWS).forEach(([id,[rx,ry]]) => {
+  document.getElementById(id)?.addEventListener("click", () => {
+    rotX=rx; rotY=ry; zoom=1;
+    if (!autoSpin) draw();
+  });
+});
+
+/* ─── Start ────────────────────────────────────────────────────── */
+requestAnimationFrame(draw);
+</script>
+</body>
+</html>

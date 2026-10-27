@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
+  <style>
+    canvas { cursor: grab; }
+    canvas:active { cursor: grabbing; }
+    .node-tooltip {
+      position: absolute;
+      pointer-events: none;
+      transition: opacity 0.15s;
+    }
+  </style>
+</head>
+<body class="bg-[var(--background)] text-[var(--foreground)] antialiased" style="margin:0;padding:0;overflow:hidden;height:100vh;display:flex;flex-direction:column;">
+
+<!-- Header -->
+<div class="flex items-center justify-between px-4 py-2 border-b border-[var(--border)] bg-[var(--card)]" style="flex-shrink:0;">
+  <div>
+    <h2 class="font-bold text-base text-[var(--foreground)]">AppSleuth — Expected Behavioral Graph</h2>
+    <p class="text-xs text-[var(--muted-foreground)]">SendEmailWithAttachment workflow · v1.0.0</p>
+  </div>
+  <div class="flex gap-2 items-center flex-wrap justify-end">
+    <span class="text-xs text-[var(--muted-foreground)]">Show:</span>
+    <button id="btn-all"      class="path-btn px-2 py-1 rounded text-xs font-medium border border-[var(--border)] bg-[var(--primary)] text-[var(--primary-foreground)]">All paths</button>
+    <button id="btn-happy"    class="path-btn px-2 py-1 rounded text-xs font-medium border border-[var(--border)]">✅ Happy</button>
+    <button id="btn-timeout"  class="path-btn px-2 py-1 rounded text-xs font-medium border border-[var(--border)]">⏱ Timeout</button>
+    <button id="btn-error"    class="path-btn px-2 py-1 rounded text-xs font-medium border border-[var(--border)]">❌ HTTP Error</button>
+    <button id="btn-reset"    class="px-2 py-1 rounded text-xs font-medium border border-[var(--border)] ml-2">⟳ Reset view</button>
+  </div>
+</div>
+
+<!-- Legend -->
+<div class="flex gap-3 px-4 py-1.5 border-b border-[var(--border)] bg-[var(--card)] flex-wrap" style="flex-shrink:0;">
+  <span class="text-xs text-[var(--muted-foreground)]">Node types:</span>
+  <span class="text-xs flex items-center gap-1"><span style="width:10px;height:10px;border-radius:50%;background:#6366f1;display:inline-block;"></span>Session</span>
+  <span class="text-xs flex items-center gap-1"><span style="width:10px;height:10px;border-radius:50%;background:#0ea5e9;display:inline-block;"></span>Screen</span>
+  <span class="text-xs flex items-center gap-1"><span style="width:10px;height:10px;border-radius:50%;background:#f59e0b;display:inline-block;"></span>User Action</span>
+  <span class="text-xs flex items-center gap-1"><span style="width:10px;height:10px;border-radius:50%;background:#8b5cf6;display:inline-block;"></span>State</span>
+  <span class="text-xs flex items-center gap-1"><span style="width:10px;height:10px;border-radius:50%;background:#06b6d4;display:inline-block;"></span>API Call</span>
+  <span class="text-xs flex items-center gap-1"><span style="width:10px;height:10px;border-radius:50%;background:#10b981;display:inline-block;"></span>API Result ✅</span>
+  <span class="text-xs flex items-center gap-1"><span style="width:10px;height:10px;border-radius:50%;background:#ef4444;display:inline-block;"></span>API Result ❌/⏱</span>
+  <span class="text-xs flex items-center gap-1 ml-2">Edge: <span style="width:18px;height:2px;background:#22c55e;display:inline-block;vertical-align:middle;"></span> happy</span>
+  <span class="text-xs flex items-center gap-1"><span style="width:18px;height:2px;background:#f59e0b;display:inline-block;vertical-align:middle;"></span> timeout</span>
+  <span class="text-xs flex items-center gap-1"><span style="width:18px;height:2px;background:#ef4444;display:inline-block;vertical-align:middle;"></span> http error</span>
+</div>
+
+<!-- Canvas -->
+<div style="flex:1;position:relative;overflow:hidden;">
+  <canvas id="graph-canvas"></canvas>
+
+  <!-- Detail panel -->
+  <div id="detail-panel" class="absolute top-3 right-3 bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-lg p-4 hidden" style="width:260px;max-height:420px;overflow-y:auto;">
+    <div class="flex justify-between items-start mb-2">
+      <h3 id="dp-title" class="font-bold text-sm text-[var(--foreground)] pr-2"></h3>
+      <button id="dp-close" class="text-[var(--muted-foreground)] hover:text-[var(--foreground)] text-lg leading-none flex-shrink-0">×</button>
+    </div>
+    <div id="dp-type"    class="text-xs font-medium mb-1"></div>
+    <div id="dp-outcome" class="text-xs mb-2"></div>
+    <div id="dp-desc"    class="text-xs text-[var(--muted-foreground)] mb-3 leading-relaxed"></div>
+    <div id="dp-meta"    class="hidden">
+      <div class="text-xs font-semibold text-[var(--foreground)] mb-1">Expected metadata</div>
+      <div id="dp-meta-body" class="text-xs bg-[var(--background)] rounded p-2 font-mono text-[var(--muted-foreground)] leading-relaxed"></div>
+    </div>
+    <div id="dp-causes" class="hidden mt-2">
+      <div class="text-xs font-semibold text-[var(--foreground)] mb-1">Known causes</div>
+      <ul id="dp-causes-body" class="text-xs text-[var(--muted-foreground)] list-disc pl-4 space-y-0.5"></ul>
+    </div>
+  </div>
+
+  <!-- Help hint -->
+  <div id="hint" class="absolute bottom-3 left-3 text-xs text-[var(--muted-foreground)] bg-[var(--card)] border border-[var(--border)] rounded-lg px-3 py-1.5">
+    🖱 Drag to pan · Scroll to zoom · Click a node for details
+  </div>
+</div>
+
+<script>
+const GRAPH = {
+  nodes: [
+    { id:"n_session_start",      label:"SessionStart",              type:"SESSION_START",  outcome:"SUCCESS",  happyPath:true,
+      description:"Application process started. Diagnostic session initialized.",
+      meta:{ appVersion:"1.0.0" } },
+    { id:"n_screen_main",        label:"Screen:\nMainActivity",     type:"SCREEN_VIEW",    outcome:"SUCCESS",  happyPath:true,
+      description:"User is on the main screen. The Compose Email button is visible.",
+      meta:{ activityClass:"com.appsleuth.demo.MainActivity" } },
+    { id:"n_tap_compose",        label:"TapCompose\nEmail",         type:"USER_ACTION",    outcome:"SUCCESS",  happyPath:true,
+      description:"User tapped the Compose Email button on MainActivity." },
+    { id:"n_screen_compose",     label:"Screen:\nComposeEmail",     type:"SCREEN_VIEW",    outcome:"SUCCESS",  happyPath:true,
+      description:"Compose email screen is shown. Attachment (report_Q3_2024.pdf) is pre-selected.",
+      meta:{ activityClass:"com.appsleuth.demo.ComposeEmailActivity" } },
+    { id:"n_tap_send",           label:"TapSend\nEmail",            type:"USER_ACTION",    outcome:"SUCCESS",  happyPath:true,
+      description:"User filled in recipient and subject, then tapped Send Email.",
+      meta:{ hasAttachment:true, attachmentName:"report_Q3_2024.pdf" },
+      validationRules:["recipient must be non-empty","subject must be non-empty"] },
+    { id:"n_state_uploading",    label:"StateChange:\nUploading",   type:"STATE_CHANGE",   outcome:"PENDING",  happyPath:true,
+      description:"App entered the uploading state. Progress bar visible, Send button disabled.",
+      meta:{ uiState:"loading" } },
+    { id:"n_api_call_upload",    label:"ApiCall:\n/api/upload",     type:"API_CALL",       outcome:"PENDING",  happyPath:true,
+      description:"HTTP POST to /api/upload initiated with PDF attachment as multipart/form-data.",
+      meta:{ method:"POST", urlPath:"/api/upload", timeoutThresholdMs:10000 } },
+    // Happy path terminal
+    { id:"n_api_result_success", label:"ApiResult:\nSUCCESS",       type:"API_RESULT",     outcome:"SUCCESS",  happyPath:true,  isTerminalHappy:false,
+      description:"Upload API returned HTTP 200. Attachment successfully uploaded.",
+      meta:{ httpCode:200, success:true } },
+    { id:"n_email_sent",         label:"StateChange:\nEmailSent",   type:"STATE_CHANGE",   outcome:"SUCCESS",  happyPath:true,  isTerminal:true,
+      description:"Email was sent successfully. UI shows success feedback. Activity finishes.",
+      meta:{ uiState:"success" } },
+    // Timeout path
+    { id:"n_api_result_timeout", label:"ApiResult:\nTIMEOUT",       type:"API_RESULT",     outcome:"TIMEOUT",  knownFailure:true,
+      description:"Upload API call timed out. SocketTimeoutException thrown after read timeout elapsed.",
+      meta:{ error:"SocketTimeoutException" },
+      causes:["Server is slow or overloaded","Large file exceeding server processing time","Network connectivity degraded","App bug: timeout threshold too low"] },
+    { id:"n_upload_failed",      label:"StateChange:\nUploadFailed", type:"STATE_CHANGE",   outcome:"TIMEOUT",  knownFailure:true, isTerminal:true,
+      description:"Upload failed. UI shows error toast. Progress bar hidden, Send button re-enabled. User can retry.",
+      meta:{ uiState:"error", reason:"upload_timeout", expected:"StateChange:EmailSent" } },
+    // HTTP error
+    { id:"n_api_result_error",   label:"ApiResult:\nHTTP Error",    type:"API_RESULT",     outcome:"FAILURE",  knownFailure:true,
+      description:"Upload API returned a non-2xx HTTP status code.",
+      meta:{ success:false },
+      causes:["Server rejected file (413 Payload Too Large)","Authentication error (401/403)","Server-side error (500)"] },
+  ],
+  edges: [
+    { from:"n_session_start",      to:"n_screen_main",        label:"navigated_to",   path:"all" },
+    { from:"n_screen_main",        to:"n_tap_compose",        label:"user_triggered", path:"all" },
+    { from:"n_tap_compose",        to:"n_screen_compose",     label:"navigated_to",   path:"all" },
+    { from:"n_screen_compose",     to:"n_tap_send",           label:"user_triggered", path:"all" },
+    { from:"n_tap_send",           to:"n_state_uploading",    label:"state_changed",  path:"all" },
+    { from:"n_state_uploading",    to:"n_api_call_upload",    label:"api_initiated",  path:"all" },
+    { from:"n_api_call_upload",    to:"n_api_result_success", label:"api_responded",  path:"happy_path" },
+    { from:"n_api_result_success", to:"n_email_sent",         label:"state_changed",  path:"happy_path" },
+    { from:"n_api_call_upload",    to:"n_api_result_timeout", label:"api_responded",  path:"timeout_failure_path" },
+    { from:"n_api_result_timeout", to:"n_upload_failed",      label:"state_changed",  path:"timeout_failure_path" },
+    { from:"n_api_call_upload",    to:"n_api_result_error",   label:"api_responded",  path:"http_error_path" },
+  ]
+};
+
+// Fixed layout positions (normalized 0-1)
+const POSITIONS = {
+  n_session_start:      { x:0.50, y:0.06 },
+  n_screen_main:        { x:0.50, y:0.17 },
+  n_tap_compose:        { x:0.50, y:0.28 },
+  n_screen_compose:     { x:0.50, y:0.39 },
+  n_tap_send:           { x:0.50, y:0.50 },
+  n_state_uploading:    { x:0.50, y:0.61 },
+  n_api_call_upload:    { x:0.50, y:0.72 },
+  n_api_result_success: { x:0.22, y:0.84 },
+  n_email_sent:         { x:0.22, y:0.93 },
+  n_api_result_timeout: { x:0.50, y:0.84 },
+  n_upload_failed:      { x:0.50, y:0.93 },
+  n_api_result_error:   { x:0.78, y:0.84 },
+};
+
+const NODE_COLORS = {
+  SESSION_START: "#6366f1",
+  SCREEN_VIEW:   "#0ea5e9",
+  USER_ACTION:   "#f59e0b",
+  STATE_CHANGE:  "#8b5cf6",
+  API_CALL:      "#06b6d4",
+  API_RESULT:    "#10b981",
+};
+
+const EDGE_COLORS = {
+  all:                  "#94a3b8",
+  happy_path:           "#22c55e",
+  timeout_failure_path: "#f59e0b",
+  http_error_path:      "#ef4444",
+};
+
+const OUTCOME_COLORS = { SUCCESS:"#10b981", PENDING:"#94a3b8", TIMEOUT:"#f59e0b", FAILURE:"#ef4444" };
+
+// State
+let pan = { x: 0, y: 0 };
+let scale = 1;
+let dragging = false;
+let dragStart = null;
+let panStart = null;
+let hoveredNode = null;
+let selectedNode = null;
+let activeFilter = "all";
+
+const canvas = document.getElementById("graph-canvas");
+const ctx = canvas.getContext("2d");
+
+function resize() {
+  const container = canvas.parentElement;
+  canvas.width  = container.offsetWidth;
+  canvas.height = container.offsetHeight;
+  draw();
+}
+
+function nodeScreenPos(node) {
+  const p = POSITIONS[node.id];
+  const W = canvas.width, H = canvas.height;
+  return {
+    x: pan.x + p.x * W * scale,
+    y: pan.y + p.y * H * scale,
+  };
+}
+
+function nodeRadius(node) {
+  const base = node.id === "n_api_call_upload" ? 32 : 28;
+  return base * Math.max(0.5, Math.min(scale, 2));
+}
+
+function isNodeVisible(node) {
+  if (activeFilter === "all") return true;
+  const seq = {
+    happy_path:           ["n_session_start","n_screen_main","n_tap_compose","n_screen_compose","n_tap_send","n_state_uploading","n_api_call_upload","n_api_result_success","n_email_sent"],
+    timeout_failure_path: ["n_session_start","n_screen_main","n_tap_compose","n_screen_compose","n_tap_send","n_state_uploading","n_api_call_upload","n_api_result_timeout","n_upload_failed"],
+    http_error_path:      ["n_session_start","n_screen_main","n_tap_compose","n_screen_compose","n_tap_send","n_state_uploading","n_api_call_upload","n_api_result_error"],
+  };
+  return (seq[activeFilter] || []).includes(node.id);
+}
+
+function isEdgeVisible(edge) {
+  if (activeFilter === "all") return true;
+  return edge.path === "all" || edge.path === activeFilter;
+}
+
+function draw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const isLight = document.documentElement.classList.contains("light");
+  const textColor   = isLight ? "#1e293b" : "#f1f5f9";
+  const mutedColor  = isLight ? "#64748b" : "#94a3b8";
+  const bgColor     = isLight ? "#f8fafc" : "#0f172a";
+  const shadowColor = isLight ? "rgba(0,0,0,0.12)" : "rgba(0,0,0,0.5)";
+
+  // Draw edges first
+  GRAPH.edges.forEach(edge => {
+    if (!isEdgeVisible(edge)) return;
+    const fromNode = GRAPH.nodes.find(n => n.id === edge.from);
+    const toNode   = GRAPH.nodes.find(n => n.id === edge.to);
+    const fp = nodeScreenPos(fromNode);
+    const tp = nodeScreenPos(toNode);
+    const color = EDGE_COLORS[edge.path] || EDGE_COLORS.all;
+    const r = nodeRadius(toNode);
+
+    // Arrow
+    const dx = tp.x - fp.x, dy = tp.y - fp.y;
+    const dist = Math.sqrt(dx*dx + dy*dy);
+    const nx = dx/dist, ny = dy/dist;
+    const fromR = nodeRadius(fromNode);
+    const sx = fp.x + nx*fromR, sy = fp.y + ny*fromR;
+    const ex = tp.x - nx*r,    ey = tp.y - ny*r;
+
+    // Edge line
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(sx, sy);
+    // Curve offset for multi-edges from same node
+    if (edge.from === "n_api_call_upload" && edge.path !== "all") {
+      const cx = (sx + ex) / 2 + (edge.path === "happy_path" ? -40 : edge.path === "http_error_path" ? 40 : 0) * scale;
+      const cy = (sy + ey) / 2;
+      ctx.quadraticCurveTo(cx, cy, ex, ey);
+    } else {
+      ctx.lineTo(ex, ey);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = (selectedNode && (selectedNode.id === edge.from || selectedNode.id === edge.to)) ? 3*scale : 1.8*scale;
+    ctx.globalAlpha = 0.85;
+    ctx.stroke();
+
+    // Arrowhead
+    const angle = Math.atan2(ey - sy, ex - sx);
+    const arrowSize = 8 * scale;
+    ctx.beginPath();
+    ctx.moveTo(ex, ey);
+    ctx.lineTo(ex - arrowSize*Math.cos(angle-0.4), ey - arrowSize*Math.sin(angle-0.4));
+    ctx.lineTo(ex - arrowSize*Math.cos(angle+0.4), ey - arrowSize*Math.sin(angle+0.4));
+    ctx.closePath();
+    ctx.fillStyle = color;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+
+    // Edge label on hover/selected
+    if (hoveredNode && (hoveredNode.id === edge.from || hoveredNode.id === edge.to)) {
+      const mx = (sx + ex) / 2;
+      const my = (sy + ey) / 2 - 8*scale;
+      ctx.font = `${Math.max(9,10*scale)}px sans-serif`;
+      ctx.fillStyle = color;
+      ctx.textAlign = "center";
+      ctx.fillText(edge.label, mx, my);
+    }
+    ctx.restore();
+  });
+
+  // Draw nodes
+  GRAPH.nodes.forEach(node => {
+    if (!isNodeVisible(node)) return;
+    const pos = nodeScreenPos(node);
+    const r   = nodeRadius(node);
+    const isHovered  = hoveredNode  && hoveredNode.id  === node.id;
+    const isSelected = selectedNode && selectedNode.id === node.id;
+    let baseColor = NODE_COLORS[node.type] || "#64748b";
+    if (node.outcome === "TIMEOUT") baseColor = "#f59e0b";
+    if (node.outcome === "FAILURE") baseColor = "#ef4444";
+
+    // Shadow
+    ctx.save();
+    ctx.shadowColor  = isSelected ? baseColor : shadowColor;
+    ctx.shadowBlur   = isSelected ? 20 : 8;
+    ctx.shadowOffsetY = 2;
+
+    // Node circle
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, r + (isHovered ? 3*scale : 0), 0, Math.PI*2);
+    ctx.fillStyle = baseColor;
+    ctx.globalAlpha = isNodeVisible(node) ? 1 : 0.25;
+    ctx.fill();
+
+    // Outer ring for terminals
+    if (node.isTerminal) {
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, r + 5*scale + (isHovered ? 3*scale : 0), 0, Math.PI*2);
+      ctx.strokeStyle = baseColor;
+      ctx.lineWidth = 2*scale;
+      ctx.globalAlpha = 0.5;
+      ctx.stroke();
+    }
+    // Selected ring
+    if (isSelected) {
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y, r + 7*scale, 0, Math.PI*2);
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 2*scale;
+      ctx.globalAlpha = 0.8;
+      ctx.stroke();
+    }
+
+    ctx.restore();
+
+    // Icon inside node
+    const icons = {
+      SESSION_START:"▶", SCREEN_VIEW:"📱", USER_ACTION:"👆",
+      STATE_CHANGE:"⇄", API_CALL:"⬆", API_RESULT:"⬇"
+    };
+    const iconFontSize = Math.max(10, 13*scale);
+    ctx.font = `${iconFontSize}px sans-serif`;
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(icons[node.type] || "●", pos.x, pos.y - 5*scale);
+
+    // Outcome badge dot
+    const badgeR = 5*scale;
+    ctx.beginPath();
+    ctx.arc(pos.x + r*0.65, pos.y - r*0.65, badgeR, 0, Math.PI*2);
+    ctx.fillStyle = OUTCOME_COLORS[node.outcome] || "#64748b";
+    ctx.fill();
+
+    // Label below node
+    const lines = node.label.split("\n");
+    const labelFontSize = Math.max(9, 10*scale);
+    ctx.font = `bold ${labelFontSize}px sans-serif`;
+    ctx.fillStyle = textColor;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "top";
+    lines.forEach((line, i) => {
+      ctx.fillText(line, pos.x, pos.y + r + 5*scale + i*(labelFontSize+1));
+    });
+  });
+}
+
+// Interaction
+function getNodeAt(x, y) {
+  for (const node of GRAPH.nodes) {
+    if (!isNodeVisible(node)) continue;
+    const pos = nodeScreenPos(node);
+    const r = nodeRadius(node) + 6;
+    const dx = x - pos.x, dy = y - pos.y;
+    if (dx*dx + dy*dy <= r*r) return node;
+  }
+  return null;
+}
+
+canvas.addEventListener("mousedown", e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  const node = getNodeAt(x, y);
+  if (node) {
+    selectedNode = node;
+    showDetail(node);
+    draw();
+  } else {
+    dragging = true;
+    dragStart = { x, y };
+    panStart  = { ...pan };
+  }
+});
+
+canvas.addEventListener("mousemove", e => {
+  const rect = canvas.getBoundingClientRect();
+  const x = e.clientX - rect.left, y = e.clientY - rect.top;
+  if (dragging) {
+    pan.x = panStart.x + (x - dragStart.x);
+    pan.y = panStart.y + (y - dragStart.y);
+    draw();
+  } else {
+    const node = getNodeAt(x, y);
+    if (node !== hoveredNode) {
+      hoveredNode = node;
+      canvas.style.cursor = node ? "pointer" : "grab";
+      draw();
+    }
+  }
+});
+
+canvas.addEventListener("mouseup", () => { dragging = false; });
+canvas.addEventListener("mouseleave", () => { dragging = false; hoveredNode = null; draw(); });
+
+canvas.addEventListener("wheel", e => {
+  e.preventDefault();
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  const delta = e.deltaY > 0 ? 0.9 : 1.1;
+  const newScale = Math.max(0.4, Math.min(3, scale * delta));
+  pan.x = mx - (mx - pan.x) * (newScale / scale);
+  pan.y = my - (my - pan.y) * (newScale / scale);
+  scale = newScale;
+  draw();
+}, { passive: false });
+
+// Detail panel
+function showDetail(node) {
+  document.getElementById("detail-panel").classList.remove("hidden");
+  document.getElementById("dp-title").textContent = node.label.replace("\n"," ");
+
+  const typeColors = {SESSION_START:"#6366f1",SCREEN_VIEW:"#0ea5e9",USER_ACTION:"#f59e0b",STATE_CHANGE:"#8b5cf6",API_CALL:"#06b6d4",API_RESULT:"#10b981"};
+  const typeEl = document.getElementById("dp-type");
+  typeEl.textContent = node.type.replace(/_/g," ");
+  typeEl.style.color = typeColors[node.type] || "#64748b";
+
+  const outcomeEl = document.getElementById("dp-outcome");
+  const oc = OUTCOME_COLORS[node.outcome] || "#64748b";
+  outcomeEl.innerHTML = `<span style="color:${oc};font-weight:600;">● ${node.outcome}</span>${node.isTerminal ? ' <span class="ml-1 text-[var(--muted-foreground)]">(terminal)</span>' : ''}${node.knownFailure ? ' <span class="ml-1" style="color:#f59e0b;">(known failure mode)</span>' : ''}`;
+
+  document.getElementById("dp-desc").textContent = node.description || "";
+
+  const metaEl = document.getElementById("dp-meta");
+  if (node.meta) {
+    metaEl.classList.remove("hidden");
+    document.getElementById("dp-meta-body").textContent = JSON.stringify(node.meta, null, 2);
+  } else metaEl.classList.add("hidden");
+
+  const causesEl = document.getElementById("dp-causes");
+  if (node.causes && node.causes.length) {
+    causesEl.classList.remove("hidden");
+    const ul = document.getElementById("dp-causes-body");
+    ul.innerHTML = node.causes.map(c => `<li>${c}</li>`).join("");
+  } else causesEl.classList.add("hidden");
+}
+
+document.getElementById("dp-close").addEventListener("click", () => {
+  document.getElementById("detail-panel").classList.add("hidden");
+  selectedNode = null;
+  draw();
+});
+
+// Path filters
+const filterMap = { "btn-all":"all", "btn-happy":"happy_path", "btn-timeout":"timeout_failure_path", "btn-error":"http_error_path" };
+Object.entries(filterMap).forEach(([btnId, filter]) => {
+  document.getElementById(btnId).addEventListener("click", () => {
+    activeFilter = filter;
+    document.querySelectorAll(".path-btn").forEach(b => {
+      b.style.background = "";
+      b.style.color = "";
+      b.classList.remove("bg-[var(--primary)]","text-[var(--primary-foreground)]");
+    });
+    const btn = document.getElementById(btnId);
+    btn.style.background = "var(--primary)";
+    btn.style.color = "var(--primary-foreground)";
+    draw();
+  });
+});
+
+document.getElementById("btn-reset").addEventListener("click", () => {
+  pan = { x:0, y:0 }; scale = 1;
+  draw();
+});
+
+window.addEventListener("resize", resize);
+resize();
+</script>
+</body>
+</html>

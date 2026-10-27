@@ -1,0 +1,117 @@
+{
+  "sessionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "appVersion": "1.0.0",
+  "startTime": 1729861200000,
+  "endTime": 1729861222500,
+  "nodes": [
+    {
+      "id": "node-001",
+      "type": "SESSION_START",
+      "label": "SessionStart",
+      "timestamp": 1729861200000,
+      "metadata": {
+        "sessionId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "appVersion": "1.0.0"
+      },
+      "outcome": "SUCCESS"
+    },
+    {
+      "id": "node-002",
+      "type": "SCREEN_VIEW",
+      "label": "Screen:MainActivity",
+      "timestamp": 1729861200412,
+      "metadata": {
+        "activityClass": "com.appsleuth.demo.MainActivity"
+      },
+      "outcome": "SUCCESS"
+    },
+    {
+      "id": "node-003",
+      "type": "USER_ACTION",
+      "label": "TapComposeEmail",
+      "timestamp": 1729861204837,
+      "metadata": {},
+      "outcome": "SUCCESS"
+    },
+    {
+      "id": "node-004",
+      "type": "SCREEN_VIEW",
+      "label": "Screen:ComposeEmailActivity",
+      "timestamp": 1729861205103,
+      "metadata": {
+        "activityClass": "com.appsleuth.demo.ComposeEmailActivity"
+      },
+      "outcome": "SUCCESS"
+    },
+    {
+      "id": "node-005",
+      "type": "USER_ACTION",
+      "label": "TapSendEmail",
+      "timestamp": 1729861210561,
+      "metadata": {
+        "recipient": "bob@example.com",
+        "subject": "Q3 Report",
+        "hasAttachment": true,
+        "attachmentName": "report_Q3_2024.pdf"
+      },
+      "outcome": "SUCCESS"
+    },
+    {
+      "id": "node-006",
+      "type": "STATE_CHANGE",
+      "label": "StateChange:Uploading",
+      "timestamp": 1729861210563,
+      "metadata": {
+        "uiState": "loading"
+      },
+      "outcome": "PENDING"
+    },
+    {
+      "id": "node-007",
+      "type": "API_CALL",
+      "label": "ApiCall:/api/upload",
+      "timestamp": 1729861210720,
+      "metadata": {
+        "method": "POST",
+        "url": "http://localhost:52341/api/upload",
+        "bodyBytes": 1024
+      },
+      "outcome": "PENDING"
+    },
+    {
+      "id": "node-008",
+      "type": "API_RESULT",
+      "label": "ApiResult:TIMEOUT:/api/upload",
+      "timestamp": 1729861220731,
+      "metadata": {
+        "error": "SocketTimeoutException",
+        "message": "timeout",
+        "durationMs": 10011,
+        "endpoint": "POST /api/upload"
+      },
+      "outcome": "TIMEOUT"
+    },
+    {
+      "id": "node-009",
+      "type": "STATE_CHANGE",
+      "label": "StateChange:UploadFailed",
+      "timestamp": 1729861220748,
+      "metadata": {
+        "uiState": "error",
+        "reason": "upload_timeout",
+        "expected": "StateChange:EmailSent"
+      },
+      "outcome": "TIMEOUT"
+    }
+  ],
+  "edges": [
+    { "fromId": "node-001", "toId": "node-002", "label": "navigated_to" },
+    { "fromId": "node-002", "toId": "node-003", "label": "user_triggered" },
+    { "fromId": "node-003", "toId": "node-004", "label": "navigated_to" },
+    { "fromId": "node-004", "toId": "node-005", "label": "user_triggered" },
+    { "fromId": "node-005", "toId": "node-006", "label": "state_changed" },
+    { "fromId": "node-006", "toId": "node-007", "label": "api_initiated" },
+    { "fromId": "node-007", "toId": "node-008", "label": "api_responded" },
+    { "fromId": "node-008", "toId": "node-009", "label": "state_changed" }
+  ]
+}
