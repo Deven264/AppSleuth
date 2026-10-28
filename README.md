@@ -118,6 +118,8 @@ AppSleuth/
 ├── visualizer/                 # Interactive browser-based graph visualizers
 │   ├── graph-2d.html           # 2D canvas interactive graph
 │   └── graph-3d.html           # 3D orbital perspective visualizer
+├── tools/                      # Standalone Developer & Extraction Tools
+│   └── web-crawler/            # Black-Box Live Web URL Crawler & Graph Generator
 ├── skills/                     # AI Skills & Extractor Tooling
 │   ├── android-graph-extractor/ # Test-driven extractor for Android test suites
 │   └── web-graph-extractor/     # Test-driven extractor for Web (Playwright/Cypress)
@@ -168,20 +170,23 @@ AppSleuth is designed with clean platform decoupling — Android and Web modules
 
 ---
 
-## 🧠 Automated Graph Extraction via Test Suites
+## 🧠 Generating Expected Graphs: White-Box vs. Black-Box
 
-How do we generate `expected_graph.json` from existing codebases? AppSleuth provides test-driven extractor skills for each ecosystem:
+AppSleuth supports both scenarios depending on what you have access to:
 
-* **Android Extractor ([`skills/android-graph-extractor/`](skills/android-graph-extractor/)):**
-  Scans unit and Espresso tests (`*Test.kt`), activities, and Retrofit interfaces.
-* **Web Extractor ([`skills/web-graph-extractor/`](skills/web-graph-extractor/)):**
-  Scans E2E Playwright/Cypress tests (`*.spec.ts`, `*.cy.js`), web routers, and fetch/axios clients.
+| Approach | When to Use | Tool / Skill | How It Works |
+|---|---|---|---|
+| **White-Box** | You have the application source code | [`skills/`](skills/) (`android-graph-extractor`, `web-graph-extractor`) | Analyzes tests (Playwright, Espresso, JUnit), routing tables, and API interfaces. |
+| **Black-Box** | You only have a live website URL or HTML | [`tools/web-crawler/`](tools/web-crawler/) | Crawls live DOM, forms, interactive buttons, and script endpoints to synthesize the graph. |
+
+### Quick CLI Usage:
 
 ```bash
-# Extract web context into a compact markdown summary
-python skills/web-graph-extractor/scripts/extract_web_context.py examples/web-checkout-demo -o web_context.md
+# Black-Box: Crawl any live website URL without source code
+python tools/web-crawler/crawler.py https://example.com/checkout -o expected_graph.json
 
-# Provide web_context.md + prompts/system_prompt.md to any LLM to output expected_graph.json!
+# White-Box: Extract from existing web codebase tests
+python skills/web-graph-extractor/scripts/extract_web_context.py /path/to/web-repo -o web_context.md
 ```
 
 ---
@@ -195,6 +200,7 @@ python skills/web-graph-extractor/scripts/extract_web_context.py examples/web-ch
 - [x] **Phase 2:** Web Diagnostic SDK (`@appsleuth/web`) & in-browser floating diagnostic widget.
 - [x] **Phase 2:** Web E-Commerce Checkout interactive demo with network scenario simulator.
 - [x] **Phase 2:** Test-driven automated behavioral graph extraction for Android & Web (`skills/`).
+- [x] **Phase 2:** Black-Box Live Web URL Crawler & Graph Generator (`tools/web-crawler/`).
 - [ ] **Phase 3:** Open-source AI Diagnostic Agent CLI and Web service (feed `expected.json` + `actual.json` + user prompt ➔ structured diagnostic report).
 - [ ] **Phase 4:** On-device small language model (SLM) diagnostic agent (offline, privacy-preserving diagnosis).
 - [ ] **Phase 5:** Self-healing and automated recovery actions (cache busting, safe state reset, token refresh).
