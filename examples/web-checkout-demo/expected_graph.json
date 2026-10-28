@@ -1,0 +1,166 @@
+{
+  "schemaVersion": "1.0",
+  "appVersion": "1.2.0",
+  "platform": "web",
+  "description": "Expected behavioral graph for SleuthStore Web Checkout workflow.",
+  "workflows": [
+    {
+      "id": "wf_ecommerce_checkout",
+      "name": "ECommerceCheckout",
+      "description": "User reviews cart, inputs shipping & payment details, and processes credit card transaction.",
+      "entryNode": "n_session_start",
+      "terminalNodes": ["n_order_confirmed", "n_payment_failed_timeout", "n_payment_failed_cors"],
+      "nodes": [
+        {
+          "id": "n_session_start",
+          "type": "SESSION_START",
+          "label": "SessionStart",
+          "expectedOutcome": "SUCCESS",
+          "description": "User loaded the web application. AppSleuth Web SDK initialized."
+        },
+        {
+          "id": "n_page_checkout",
+          "type": "PAGE_VIEW",
+          "label": "PageView:/checkout",
+          "expectedOutcome": "SUCCESS",
+          "description": "Checkout page loaded. Order summary and payment forms rendered."
+        },
+        {
+          "id": "n_click_pay",
+          "type": "USER_ACTION",
+          "label": "Click:PayNowButton",
+          "expectedOutcome": "SUCCESS",
+          "description": "User clicked the Pay Now button to process transaction."
+        },
+        {
+          "id": "n_state_processing",
+          "type": "STATE_CHANGE",
+          "label": "StateChange:ProcessingPayment",
+          "expectedOutcome": "PENDING",
+          "description": "UI enters loading state. Pay button disabled, spinner displayed."
+        },
+        {
+          "id": "n_api_call_charge",
+          "type": "API_CALL",
+          "label": "ApiCall:/api/v1/charge",
+          "expectedOutcome": "PENDING",
+          "description": "HTTP POST to payment gateway endpoint with payment token.",
+          "constraints": {
+            "timeoutThresholdMs": 8000
+          }
+        },
+        {
+          "id": "n_api_result_success",
+          "type": "API_RESULT",
+          "label": "ApiResult:200:/api/v1/charge",
+          "expectedOutcome": "SUCCESS",
+          "description": "Payment gateway processed card and returned HTTP 200 OK."
+        },
+        {
+          "id": "n_order_confirmed",
+          "type": "STATE_CHANGE",
+          "label": "StateChange:OrderConfirmed",
+          "expectedOutcome": "SUCCESS",
+          "description": "Order confirmed. Success banner displayed.",
+          "isTerminal": true
+        },
+        {
+          "id": "n_api_result_timeout",
+          "type": "API_RESULT",
+          "label": "ApiResult:TIMEOUT:/api/v1/charge",
+          "expectedOutcome": "TIMEOUT",
+          "description": "Payment gateway request timed out after 8,000ms elapsed.",
+          "isKnownFailureMode": true,
+          "knownCauses": [
+            "Payment gateway service degradation / high latency",
+            "Client network drop during transaction",
+            "Gateway timeout threshold set too low for 3D Secure verification"
+          ]
+        },
+        {
+          "id": "n_payment_failed_timeout",
+          "type": "STATE_CHANGE",
+          "label": "StateChange:PaymentFailed",
+          "expectedOutcome": "TIMEOUT",
+          "description": "Payment failed due to timeout. Error alert displayed, Pay button re-enabled.",
+          "isTerminal": true,
+          "isKnownFailureMode": true
+        },
+        {
+          "id": "n_api_result_cors",
+          "type": "API_RESULT",
+          "label": "ApiResult:FAILED:/api/v1/charge",
+          "expectedOutcome": "FAILURE",
+          "description": "Browser blocked payment gateway request due to CORS preflight failure.",
+          "isKnownFailureMode": true,
+          "knownCauses": [
+            "CORS Access-Control-Allow-Origin header missing on payment gateway",
+            "Adblocker or privacy extension blocking analytics or third-party payment scripts",
+            "Mixed content HTTP/HTTPS restriction"
+          ]
+        },
+        {
+          "id": "n_payment_failed_cors",
+          "type": "STATE_CHANGE",
+          "label": "StateChange:PaymentFailed",
+          "expectedOutcome": "FAILURE",
+          "description": "Payment failed due to CORS/network block.",
+          "isTerminal": true,
+          "isKnownFailureMode": true
+        }
+      ],
+      "edges": [
+        { "from": "n_session_start", "to": "n_page_checkout", "label": "navigated_to", "path": "all" },
+        { "from": "n_page_checkout", "to": "n_click_pay", "label": "user_triggered", "path": "all" },
+        { "from": "n_click_pay", "to": "n_state_processing", "label": "state_changed", "path": "all" },
+        { "from": "n_state_processing", "to": "n_api_call_charge", "label": "api_initiated", "path": "all" },
+        { "from": "n_api_call_charge", "to": "n_api_result_success", "label": "api_responded", "path": "happy_path" },
+        { "from": "n_api_result_success", "to": "n_order_confirmed", "label": "state_changed", "path": "happy_path" },
+        { "from": "n_api_call_charge", "to": "n_api_result_timeout", "label": "api_responded", "path": "timeout_failure_path" },
+        { "from": "n_api_result_timeout", "to": "n_payment_failed_timeout", "label": "state_changed", "path": "timeout_failure_path" },
+        { "from": "n_api_call_charge", "to": "n_api_result_cors", "label": "api_responded", "path": "cors_error_path" },
+        { "from": "n_api_result_cors", "to": "n_payment_failed_cors", "label": "state_changed", "path": "cors_error_path" }
+      ],
+      "paths": {
+        "happy_path": {
+          "description": "User successfully completes checkout and pays",
+          "sequence": [
+            "n_session_start",
+            "n_page_checkout",
+            "n_click_pay",
+            "n_state_processing",
+            "n_api_call_charge",
+            "n_api_result_success",
+            "n_order_confirmed"
+          ]
+        },
+        "timeout_failure_path": {
+          "description": "Payment gateway times out after 8s",
+          "divergesFromHappyPathAt": "n_api_call_charge",
+          "sequence": [
+            "n_session_start",
+            "n_page_checkout",
+            "n_click_pay",
+            "n_state_processing",
+            "n_api_call_charge",
+            "n_api_result_timeout",
+            "n_payment_failed_timeout"
+          ]
+        },
+        "cors_error_path": {
+          "description": "Payment gateway request blocked by browser CORS policy",
+          "divergesFromHappyPathAt": "n_api_call_charge",
+          "sequence": [
+            "n_session_start",
+            "n_page_checkout",
+            "n_click_pay",
+            "n_state_processing",
+            "n_api_call_charge",
+            "n_api_result_cors",
+            "n_payment_failed_cors"
+          ]
+        }
+      }
+    }
+  ]
+}

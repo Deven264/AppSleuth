@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SleuthStore — Checkout Demo</title>
+  <!-- Load AppSleuth Web Diagnostic SDK -->
+  <script src="../../packages/web-sdk/appsleuth-web.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #0f172a;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: #1e293b;
+      border-bottom: 1px solid #334155;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand { font-size: 18px; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 8px; }
+    .sim-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #0f172a;
+      border: 1px solid #334155;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+    }
+    .sim-bar select {
+      background: #1e293b;
+      color: #f8fafc;
+      border: 1px solid #475569;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    main {
+      flex: 1;
+      max-width: 960px;
+      margin: 32px auto;
+      padding: 0 16px;
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 24px;
+      width: 100%;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    h2 { font-size: 16px; font-weight: 700; color: #f1f5f9; border-bottom: 1px solid #334155; padding-bottom: 8px; }
+    .form-group { display: flex; flex-direction: column; gap: 6px; }
+    label { font-size: 12px; font-weight: 600; color: #94a3b8; }
+    input {
+      background: #0f172a;
+      border: 1px solid #475569;
+      color: #f8fafc;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+    }
+    input:focus { border-color: #38bdf8; }
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .cart-item {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #334155;
+    }
+    .item-img {
+      width: 56px;
+      height: 56px;
+      background: #334155;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+    .summary-row { display: flex; justify-content: space-between; font-size: 13px; color: #94a3b8; }
+    .summary-total { display: flex; justify-content: space-between; font-size: 16px; font-weight: 700; color: #f8fafc; border-top: 1px solid #334155; padding-top: 12px; }
+    .btn-pay {
+      background: #2563eb;
+      color: #ffffff;
+      border: none;
+      padding: 14px;
+      border-radius: 8px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background 0.15s;
+    }
+    .btn-pay:hover { background: #1d4ed8; }
+    .btn-pay:disabled { background: #475569; cursor: not-allowed; }
+    .spinner {
+      display: none;
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .alert-box {
+      display: none;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .alert-error { background: #450a0a; border: 1px solid #b91c1c; color: #fca5a5; }
+    .alert-success { background: #052e16; border: 1px solid #15803d; color: #86efac; }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <span>🛍️</span> SleuthStore
+    </div>
+    <div class="sim-bar">
+      <span>⚙️ Network Simulator:</span>
+      <select id="simScenario" data-appsleuth-track="SelectScenario">
+        <option value="timeout">Simulate Payment Timeout (Known Failure)</option>
+        <option value="cors">Simulate CORS Gateway Rejection</option>
+        <option value="success">Normal Happy Path (Success 200)</option>
+      </select>
+    </div>
+  </header>
+
+  <main>
+    <!-- Left column: Checkout Forms -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+      <div class="card">
+        <h2>1. Shipping Address</h2>
+        <div class="form-row">
+          <div class="form-group">
+            <label>First Name</label>
+            <input type="text" id="firstName" value="Alex" placeholder="Alex" />
+          </div>
+          <div class="form-group">
+            <label>Last Name</label>
+            <input type="text" id="lastName" value="Rivera" placeholder="Rivera" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input type="email" id="email" value="alex@example.com" placeholder="alex@example.com" />
+        </div>
+        <div class="form-group">
+          <label>Street Address</label>
+          <input type="text" id="address" value="742 Evergreen Terrace" />
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>2. Payment Information</h2>
+        <div class="form-group">
+          <label>Card Number</label>
+          <input type="text" id="cardNumber" value="•••• •••• •••• 4242" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Expires</label>
+            <input type="text" id="cardExpiry" value="12/28" />
+          </div>
+          <div class="form-group">
+            <label>CVC</label>
+            <input type="text" id="cardCvc" value="123" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Result alerts -->
+      <div class="alert-box alert-error" id="errorBox">
+        <strong>⚠️ Payment Failed:</strong>
+        <span id="errorMsg">The payment gateway timed out after 8 seconds without response. Check the AppSleuth widget on bottom-right to inspect!</span>
+      </div>
+
+      <div class="alert-box alert-success" id="successBox">
+        <strong>🎉 Order Confirmed!</strong> Thank you for your purchase. Receipt sent to your email.
+      </div>
+    </div>
+
+    <!-- Right column: Cart Summary & Pay Button -->
+    <div>
+      <div class="card">
+        <h2>Order Summary</h2>
+        <div class="cart-item">
+          <div class="item-img">🎧</div>
+          <div>
+            <div style="font-weight: 600; font-size: 14px;">Aura Pro Wireless</div>
+            <div style="font-size: 12px; color: #94a3b8;">Midnight Black · Qty 1</div>
+          </div>
+        </div>
+
+        <div class="summary-row">
+          <span>Subtotal</span>
+          <span>$249.00</span>
+        </div>
+        <div class="summary-row">
+          <span>Shipping</span>
+          <span style="color: #4ade80;">FREE</span>
+        </div>
+        <div class="summary-row">
+          <span>Taxes</span>
+          <span>$19.92</span>
+        </div>
+        <div class="summary-total">
+          <span>Total</span>
+          <span>$268.92</span>
+        </div>
+
+        <button class="btn-pay" id="btnPay" data-appsleuth-track="PayNowButton">
+          <span class="spinner" id="paySpinner"></span>
+          <span id="payText">Pay $268.92</span>
+        </button>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // 1. Initialize AppSleuth Web Diagnostic SDK
+    AppSleuth.start({
+      appVersion: '1.2.0',
+      showWidget: true, // In-browser floating diagnostic widget on bottom-right
+      autoTrackClicks: true,
+      autoTrackFetch: true,
+      autoTrackNavigation: true,
+      autoTrackErrors: true
+    });
+
+    const btnPay = document.getElementById('btnPay');
+    const paySpinner = document.getElementById('paySpinner');
+    const payText = document.getElementById('payText');
+    const errorBox = document.getElementById('errorBox');
+    const errorMsg = document.getElementById('errorMsg');
+    const successBox = document.getElementById('successBox');
+    const simScenario = document.getElementById('simScenario');
+
+    btnPay.addEventListener('click', async () => {
+      // Hide alerts
+      errorBox.style.display = 'none';
+      successBox.style.display = 'none';
+
+      // Set loading state
+      btnPay.disabled = true;
+      paySpinner.style.display = 'inline-block';
+      payText.textContent = 'Processing Payment...';
+
+      // Record State Change: ProcessingPayment
+      AppSleuth.trackStateChange('ProcessingPayment', {
+        amount: 268.92,
+        currency: 'USD',
+        scenario: simScenario.value
+      }, 'PENDING');
+
+      const scenario = simScenario.value;
+
+      try {
+        if (scenario === 'timeout') {
+          // Simulate Payment Gateway Timeout:
+          // We issue a fetch call that is deliberately aborted or hangs for 8 seconds
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+          // Mock payment gateway endpoint
+          await fetch('/api/v1/charge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount: 26892, token: 'tok_visa' }),
+            signal: controller.signal
+          });
+          clearTimeout(timeoutId);
+
+        } else if (scenario === 'cors') {
+          // Simulate CORS Preflight failure
+          await fetch('https://invalid-gateway.appsleuth-mock.internal/charge', {
+            method: 'POST',
+            mode: 'cors',
+            headers: { 'X-Simulated-Header': 'fail' },
+            body: JSON.stringify({ amount: 26892 })
+          });
+
+        } else {
+          // Success Path: Fake 200 response
+          await new Promise(r => setTimeout(r, 1200));
+          // Issue dummy request to record 200 OK
+          await fetch('data:application/json,{"status":"success","orderId":"ORD-9821"}');
+          
+          AppSleuth.trackStateChange('OrderConfirmed', { orderId: 'ORD-9821' }, 'SUCCESS');
+          successBox.style.display = 'block';
+        }
+
+      } catch (err) {
+        console.warn('Payment failed:', err);
+
+        // Record failure state change
+        const isTimeout = scenario === 'timeout';
+        AppSleuth.trackStateChange('PaymentFailed', {
+          reason: isTimeout ? 'gateway_timeout' : 'cors_network_error',
+          errorMessage: err.message
+        }, isTimeout ? 'TIMEOUT' : 'FAILURE');
+
+        // Reveal error UI
+        errorMsg.textContent = isTimeout
+          ? 'Payment Gateway timed out after 8,000ms. The transaction did not complete.'
+          : 'Payment Gateway blocked by browser CORS policy. Network request failed.';
+        errorBox.style.display = 'block';
+
+      } finally {
+        btnPay.disabled = false;
+        paySpinner.style.display = 'none';
+        payText.textContent = 'Pay $268.92';
+      }
+    });
+  </script>
+</body>
+</html>

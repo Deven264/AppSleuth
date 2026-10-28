@@ -1,0 +1,27 @@
+{
+  "name": "@appsleuth/web",
+  "version": "1.0.0",
+  "description": "AppSleuth Web Diagnostic SDK — Automated runtime behavioral graph recording for web applications",
+  "main": "appsleuth-web.js",
+  "module": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "appsleuth",
+    "self-diagnosis",
+    "behavioral-graph",
+    "tracing",
+    "diagnostics",
+    "telemetry",
+    "ai-debugging"
+  ],
+  "author": "Deven Patel",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Deven264/AppSleuth.git",
+    "directory": "packages/web-sdk"
+  }
+}

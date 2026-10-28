@@ -4,7 +4,8 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Active_Development-green.svg)](#roadmap)
-[![Platform](https://img.shields.io/badge/SDK-Android%20%7C%20Cross--Platform%20Ready-orange.svg)](#architecture)
+[![Android](https://img.shields.io/badge/SDK-Android%20Kotlin-brightgreen.svg)](examples/android-email-demo)
+[![Web](https://img.shields.io/badge/SDK-Web%20JavaScript%20%2F%20TypeScript-blue.svg)](packages/web-sdk)
 
 ---
 
@@ -104,6 +105,10 @@ flowchart TD
 
 ```
 AppSleuth/
+├── packages/                   # Core Platform Diagnostic SDKs
+│   └── web-sdk/                # @appsleuth/web JavaScript / TypeScript Diagnostic SDK
+│       ├── appsleuth-web.js    # Standalone browser bundle (zero build step needed)
+│       └── src/                # Interceptors (Fetch, Nav, Click, Error) & DiagnosticWidget
 ├── assets/                     # Demo screenshots and screen recordings
 │   ├── demo-video.mp4
 │   └── screenshot.png
@@ -114,18 +119,11 @@ AppSleuth/
 │   ├── graph-2d.html           # 2D canvas interactive graph
 │   └── graph-3d.html           # 3D orbital perspective visualizer
 ├── skills/                     # AI Skills & Extractor Tooling
-│   └── graph-extractor/        # Test-driven codebase behavioral graph generator
-│       ├── SKILL.md            # Skill specification & 4-Pillar methodology
-│       ├── prompts/            # Standardized LLM system prompts
-│       └── scripts/            # Codebase context scanning utilities
-├── examples/                   # Platform implementations & sample applications
-│   └── android-email-demo/     # Complete Android demo app with Diagnostic SDK
-│       ├── app/
-│       │   └── src/main/java/com/appsleuth/
-│       │       ├── demo/       # Sample email application (UI & logic)
-│       │       └── diagnostic/ # AppSleuth Android Diagnostic SDK
-│       ├── build.gradle.kts
-│       └── README.md
+│   ├── android-graph-extractor/ # Test-driven extractor for Android test suites
+│   └── web-graph-extractor/     # Test-driven extractor for Web (Playwright/Cypress)
+├── examples/                   # Independent platform demonstration applications
+│   ├── android-email-demo/     # Complete Android demo app with Diagnostic SDK
+│   └── web-checkout-demo/      # Interactive E-Commerce Checkout demo with in-browser widget
 ├── LICENSE                     # Apache 2.0 Open Source License
 └── README.md
 ```
@@ -136,7 +134,7 @@ AppSleuth/
 
 ### Node Types
 - `SESSION_START`: Application initialization and session metadata.
-- `SCREEN_VIEW`: Navigation to an Activity, Fragment, or screen.
+- `SCREEN_VIEW` / `PAGE_VIEW`: Navigation to an Activity, Fragment, or web route.
 - `USER_ACTION`: Intentional user input (button clicks, form inputs).
 - `API_CALL`: Outbound network request.
 - `API_RESULT`: Network response, HTTP code, latency, or timeout.
@@ -145,36 +143,46 @@ AppSleuth/
 
 ### Divergence Detection Example
 When the user states:
-> *"I am trying to send an email with a PDF attachment, but it keeps loading and never sends."*
+> *"I clicked Pay Now, but it kept loading and never placed my order."*
 
 The diagnostic engine compares the paths:
-- **Expected Happy Path:** `StateChange:Uploading` ➔ `ApiCall:/api/upload` ➔ `ApiResult:SUCCESS` ➔ `StateChange:EmailSent`
-- **Observed Trace:** `StateChange:Uploading` ➔ `ApiCall:/api/upload` ➔ `ApiResult:TIMEOUT` (elapsed: `10011ms`) ➔ `StateChange:UploadFailed`
-- **Diagnosis:** The attachment upload timed out after 10,000ms. Known causes include slow network or undersized client timeout for 4.2 MB attachments.
+- **Expected Happy Path:** `StateChange:ProcessingPayment` ➔ `ApiCall:/api/v1/charge` ➔ `ApiResult:200` ➔ `StateChange:OrderConfirmed`
+- **Observed Trace:** `StateChange:ProcessingPayment` ➔ `ApiCall:/api/v1/charge` ➔ `ApiResult:TIMEOUT` (elapsed: `8014ms`) ➔ `StateChange:PaymentFailed`
+- **Diagnosis:** The payment gateway endpoint timed out after 8,000ms. Known causes include payment gateway latency or client timeout threshold set too low for 3D Secure verification.
 
 ---
 
-## 🚀 Running the Example Android App
+## 🚀 Example Applications
 
-The demo app in [`examples/android-email-demo/`](examples/android-email-demo/) showcases the complete on-device diagnostic flow:
+AppSleuth is designed with clean platform decoupling — Android and Web modules run completely independently:
 
-1. Open Android Studio and choose **Open** on `examples/android-email-demo`.
-2. Sync Gradle and run the app on any device or emulator (Android 7.0+ / API 24+).
-3. Tap **Compose Email** ➔ **Send Email**.
-4. The client simulates the 10-second timeout.
-5. The execution graph is saved directly to the device's public **Downloads** directory (`Downloads/execution_graph.json`) using Android `MediaStore` — **zero ADB commands required**.
-6. Use the in-app **View Graph** or **Share Graph** button to inspect or export the JSON trace.
+### 1. Web Checkout Demo (`examples/web-checkout-demo/`)
+* **Zero-Setup Testing:** Open [`examples/web-checkout-demo/index.html`](examples/web-checkout-demo/index.html) in any browser.
+* **Interactive Scenarios:** Test payment gateway timeouts, CORS rejections, or normal success.
+* **In-Browser Diagnostic Pill:** Displays live node counts and turns red on failures (`⚠️ 1 failure`). Click to inspect the full trace or download `execution_graph.json` with zero command-line tools.
+
+### 2. Android Email Demo (`examples/android-email-demo/`)
+* Open `examples/android-email-demo` in Android Studio and run on device or emulator.
+* Simulates PDF attachment upload timeout at 10 seconds.
+* Automatically saves `execution_graph.json` into the device's public **Downloads** directory using `MediaStore` — zero ADB needed.
 
 ---
 
 ## 🧠 Automated Graph Extraction via Test Suites
 
-How do we generate `expected_graph.json` from an existing app codebase without manual labor?
-AppSleuth includes the **Graph Extractor Skill** located in [`skills/graph-extractor/`](skills/graph-extractor/):
+How do we generate `expected_graph.json` from existing codebases? AppSleuth provides test-driven extractor skills for each ecosystem:
 
-1. **Tests as the Source of Truth:** Unit and integration tests (e.g. [`ComposeEmailWorkflowTest.kt`](examples/android-email-demo/app/src/test/java/com/appsleuth/demo/ComposeEmailWorkflowTest.kt)) document exact expected behavior, happy path assertions, and handled failure scenarios.
-2. **Context Scanner CLI:** Run `python skills/graph-extractor/scripts/extract_code_context.py <path_to_app>` to extract only tests, navigation, UI screens, and network interfaces into a lightweight markdown file.
-3. **LLM Synthesis:** Pass the markdown along with [`prompts/system_prompt.md`](skills/graph-extractor/prompts/system_prompt.md) to any LLM (Claude, Gemini, GPT-4o) to automatically produce the valid `expected_graph.json`.
+* **Android Extractor ([`skills/android-graph-extractor/`](skills/android-graph-extractor/)):**
+  Scans unit and Espresso tests (`*Test.kt`), activities, and Retrofit interfaces.
+* **Web Extractor ([`skills/web-graph-extractor/`](skills/web-graph-extractor/)):**
+  Scans E2E Playwright/Cypress tests (`*.spec.ts`, `*.cy.js`), web routers, and fetch/axios clients.
+
+```bash
+# Extract web context into a compact markdown summary
+python skills/web-graph-extractor/scripts/extract_web_context.py examples/web-checkout-demo -o web_context.md
+
+# Provide web_context.md + prompts/system_prompt.md to any LLM to output expected_graph.json!
+```
 
 ---
 
@@ -184,7 +192,9 @@ AppSleuth includes the **Graph Extractor Skill** located in [`skills/graph-extra
 - [x] **Phase 1:** Android Diagnostic SDK (Activity tracking, user action wrappers, OkHttp interceptor).
 - [x] **Phase 1:** On-device zero-ADB export (MediaStore Downloads & native share sheet).
 - [x] **Phase 1:** 2D and 3D interactive graph visualizers.
-- [x] **Phase 2:** Test-driven automated behavioral graph extraction (`skills/graph-extractor/`).
+- [x] **Phase 2:** Web Diagnostic SDK (`@appsleuth/web`) & in-browser floating diagnostic widget.
+- [x] **Phase 2:** Web E-Commerce Checkout interactive demo with network scenario simulator.
+- [x] **Phase 2:** Test-driven automated behavioral graph extraction for Android & Web (`skills/`).
 - [ ] **Phase 3:** Open-source AI Diagnostic Agent CLI and Web service (feed `expected.json` + `actual.json` + user prompt ➔ structured diagnostic report).
 - [ ] **Phase 4:** On-device small language model (SLM) diagnostic agent (offline, privacy-preserving diagnosis).
 - [ ] **Phase 5:** Self-healing and automated recovery actions (cache busting, safe state reset, token refresh).
