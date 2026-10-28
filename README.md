@@ -119,7 +119,7 @@ AppSleuth/
 │   ├── graph-2d.html           # 2D canvas interactive graph
 │   └── graph-3d.html           # 3D orbital perspective visualizer
 ├── tools/                      # Standalone Developer & Extraction Tools
-│   └── web-crawler/            # Black-Box Live Web URL Crawler & Graph Generator
+│   └── web-crawler/            # Black-Box Behavioral Reconstruction (Live Web URL Crawler)
 ├── skills/                     # AI Skills & Extractor Tooling
 │   ├── android-graph-extractor/ # Test-driven extractor for Android test suites
 │   └── web-graph-extractor/     # Test-driven extractor for Web (Playwright/Cypress)
@@ -170,22 +170,22 @@ AppSleuth is designed with clean platform decoupling — Android and Web modules
 
 ---
 
-## 🧠 Generating Expected Graphs: White-Box vs. Black-Box
+## 🧠 Generating Expected Graphs: White-Box vs. Black-Box Behavioral Reconstruction
 
-AppSleuth supports both scenarios depending on what you have access to:
+AppSleuth supports both operational paradigms depending on what assets you have access to:
 
-| Approach | When to Use | Tool / Skill | How It Works |
+| Paradigm | When to Use | Tool / Skill | How It Works |
 |---|---|---|---|
-| **White-Box** | You have the application source code | [`skills/`](skills/) (`android-graph-extractor`, `web-graph-extractor`) | Analyzes tests (Playwright, Espresso, JUnit), routing tables, and API interfaces. |
-| **Black-Box** | You only have a live website URL or HTML | [`tools/web-crawler/`](tools/web-crawler/) | Crawls live DOM, forms, interactive buttons, and script endpoints to synthesize the graph. |
+| **White-Box Code Analysis** | You have application source code & test suites | [`skills/`](skills/) (`android-graph-extractor`, `web-graph-extractor`) | Scans executable test specs (Playwright, Cypress, Espresso, JUnit), routing tables, and API interfaces to extract expected behavior. |
+| **Black-Box Behavioral Reconstruction** | You only have a live website URL, running UI, or compiled binary | [`tools/web-crawler/`](tools/web-crawler/) | Reconstructs behavioral workflows by discovering DOM interactive controls, form fields, and network call patterns without requiring source code. |
 
 ### Quick CLI Usage:
 
 ```bash
-# Black-Box: Crawl any live website URL without source code
+# Black-Box Behavioral Reconstruction: Reconstruct expected graph from a live URL
 python tools/web-crawler/crawler.py https://example.com/checkout -o expected_graph.json
 
-# White-Box: Extract from existing web codebase tests
+# White-Box Extraction: Extract from existing codebase tests and specs
 python skills/web-graph-extractor/scripts/extract_web_context.py /path/to/web-repo -o web_context.md
 ```
 
@@ -200,7 +200,8 @@ python skills/web-graph-extractor/scripts/extract_web_context.py /path/to/web-re
 - [x] **Phase 2:** Web Diagnostic SDK (`@appsleuth/web`) & in-browser floating diagnostic widget.
 - [x] **Phase 2:** Web E-Commerce Checkout interactive demo with network scenario simulator.
 - [x] **Phase 2:** Test-driven automated behavioral graph extraction for Android & Web (`skills/`).
-- [x] **Phase 2:** Black-Box Live Web URL Crawler & Graph Generator (`tools/web-crawler/`).
+- [x] **Phase 2:** Black-Box Behavioral Reconstruction for Web (`tools/web-crawler/`).
+- [ ] **Phase 2.5:** Black-Box Behavioral Reconstruction for Mobile Apps (`tools/apk-analyzer/`).
 - [ ] **Phase 3:** Open-source AI Diagnostic Agent CLI and Web service (feed `expected.json` + `actual.json` + user prompt ➔ structured diagnostic report).
 - [ ] **Phase 4:** On-device small language model (SLM) diagnostic agent (offline, privacy-preserving diagnosis).
 - [ ] **Phase 5:** Self-healing and automated recovery actions (cache busting, safe state reset, token refresh).

@@ -1,15 +1,15 @@
-# AppSleuth Web Crawler & Black-Box Graph Generator
+# AppSleuth Web Crawler — Black-Box Behavioral Reconstruction
 
-Generate an **AppSleuth Expected Behavioral Graph** (`expected_graph.json`) from any live website URL or HTML page without needing access to the original source code repository.
+Generate an **AppSleuth Expected Behavioral Graph** (`expected_graph.json`) from any live website URL or HTML page without needing access to the original source code repository via **Black-Box Behavioral Reconstruction**.
 
 ---
 
 ## 🎯 White-Box vs. Black-Box in AppSleuth
 
-| Mode | Scenario | Tool to Use | Input |
+| Mode | Paradigm | Tool to Use | Input |
 |---|---|---|---|
-| **White-Box** | You have the application source code | [`skills/web-graph-extractor/`](../../skills/web-graph-extractor/) | Playwright/Cypress tests & routing code |
-| **Black-Box** | You only have the live website URL or HTML | [`tools/web-crawler/`](./) | Website URL (e.g. `https://myshop.com/checkout`) |
+| **White-Box** | Code & Test Mining | [`skills/web-graph-extractor/`](../../skills/web-graph-extractor/) | Playwright/Cypress tests & routing code |
+| **Black-Box** | Behavioral Reconstruction | [`tools/web-crawler/`](./) | Website URL (e.g. `https://myshop.com/checkout`) or raw DOM |
 
 ---
 
