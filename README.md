@@ -113,6 +113,11 @@ AppSleuth/
 ├── visualizer/                 # Interactive browser-based graph visualizers
 │   ├── graph-2d.html           # 2D canvas interactive graph
 │   └── graph-3d.html           # 3D orbital perspective visualizer
+├── skills/                     # AI Skills & Extractor Tooling
+│   └── graph-extractor/        # Test-driven codebase behavioral graph generator
+│       ├── SKILL.md            # Skill specification & 4-Pillar methodology
+│       ├── prompts/            # Standardized LLM system prompts
+│       └── scripts/            # Codebase context scanning utilities
 ├── examples/                   # Platform implementations & sample applications
 │   └── android-email-demo/     # Complete Android demo app with Diagnostic SDK
 │       ├── app/
@@ -162,13 +167,24 @@ The demo app in [`examples/android-email-demo/`](examples/android-email-demo/) s
 
 ---
 
+## 🧠 Automated Graph Extraction via Test Suites
+
+How do we generate `expected_graph.json` from an existing app codebase without manual labor?
+AppSleuth includes the **Graph Extractor Skill** located in [`skills/graph-extractor/`](skills/graph-extractor/):
+
+1. **Tests as the Source of Truth:** Unit and integration tests (e.g. [`ComposeEmailWorkflowTest.kt`](examples/android-email-demo/app/src/test/java/com/appsleuth/demo/ComposeEmailWorkflowTest.kt)) document exact expected behavior, happy path assertions, and handled failure scenarios.
+2. **Context Scanner CLI:** Run `python skills/graph-extractor/scripts/extract_code_context.py <path_to_app>` to extract only tests, navigation, UI screens, and network interfaces into a lightweight markdown file.
+3. **LLM Synthesis:** Pass the markdown along with [`prompts/system_prompt.md`](skills/graph-extractor/prompts/system_prompt.md) to any LLM (Claude, Gemini, GPT-4o) to automatically produce the valid `expected_graph.json`.
+
+---
+
 ## 🗺 Open-Source Roadmap
 
 - [x] **Phase 1:** Core graph data model & schema specification.
 - [x] **Phase 1:** Android Diagnostic SDK (Activity tracking, user action wrappers, OkHttp interceptor).
 - [x] **Phase 1:** On-device zero-ADB export (MediaStore Downloads & native share sheet).
 - [x] **Phase 1:** 2D and 3D interactive graph visualizers.
-- [ ] **Phase 2:** Automated behavioral graph extraction from Android/iOS/Web routing tables and OpenAPI specs.
+- [x] **Phase 2:** Test-driven automated behavioral graph extraction (`skills/graph-extractor/`).
 - [ ] **Phase 3:** Open-source AI Diagnostic Agent CLI and Web service (feed `expected.json` + `actual.json` + user prompt ➔ structured diagnostic report).
 - [ ] **Phase 4:** On-device small language model (SLM) diagnostic agent (offline, privacy-preserving diagnosis).
 - [ ] **Phase 5:** Self-healing and automated recovery actions (cache busting, safe state reset, token refresh).
