@@ -1,6 +1,7 @@
-# AppSleuth: AI-Powered Self-Diagnosing Applications
+# Argus: SystemSleuth
 
-> **Turning passive applications into intelligent systems that understand their expected behavior, observe runtime execution graphs, and diagnose their own failures using AI.**
+> **AI-Powered Behavioral Self-Diagnosis for Modern Software**  
+> Turning passive applications and websites into intelligent systems that understand their expected behavior, observe runtime execution graphs, and diagnose their own failures using AI.
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Status](https://img.shields.io/badge/Status-Active_Development-green.svg)](#roadmap)
@@ -23,7 +24,7 @@ When users encounter technical issues in an app or website — a screen that get
 
 ## 💡 The Solution: Graph-Based Behavioral Self-Diagnosis
 
-AppSleuth replaces fragile, unsearchable text logs with **structured behavioral graphs**:
+Argus replaces fragile, unsearchable text logs with **structured behavioral graphs**:
 
 ```mermaid
 flowchart LR
@@ -56,11 +57,11 @@ flowchart LR
 ## 📸 Demo & Visualization
 
 ### On-Device Recording & In-App Diagnostics
-In our sample workflow, the user attempts to send an email with a 4.2 MB PDF attachment. The simulated backend delays response headers, causing an OkHttp `SocketTimeoutException` at 10 seconds. AppSleuth automatically catches the failure, flushes the execution graph to the device's **Downloads** folder (`Downloads/execution_graph.json`), and provides in-app inspection and sharing:
+In our sample workflow, the user attempts to send an email with a 4.2 MB PDF attachment. The simulated backend delays response headers, causing an OkHttp `SocketTimeoutException` at 10 seconds. Argus automatically catches the failure, flushes the execution graph to the device's **Downloads** folder (`Downloads/execution_graph.json`), and provides in-app inspection and sharing:
 
 | Execution Graph Inspection | Video Walkthrough |
 | :---: | :---: |
-| ![AppSleuth Screenshot](assets/screenshot.png) | [▶️ Watch Demo Video](assets/demo-video.mp4) |
+| ![Argus Screenshot](assets/screenshot.png) | [▶️ Watch Demo Video](assets/demo-video.mp4) |
 
 *You can inspect the screen recording of the workflow in [`assets/demo-video.mp4`](assets/demo-video.mp4).*
 
@@ -68,7 +69,7 @@ In our sample workflow, the user attempts to send an email with a 4.2 MB PDF att
 
 ### Interactive 2D & 3D Graph Visualizers
 
-AppSleuth includes standalone browser visualizers to explore expected and recorded behavioral graphs:
+Argus includes standalone browser visualizers to explore expected and recorded behavioral graphs:
 
 - **3D Graph Visualizer:** [`visualizer/graph-3d.html`](visualizer/graph-3d.html) — Interactive 3D orbital visualization fanning out the Happy Path, Timeout Failure Path, and HTTP Error Path in spatial coordinates.
 - **2D Graph Explorer:** [`visualizer/graph-2d.html`](visualizer/graph-2d.html) — Pan-and-zoom node graph with path filtering and metadata inspection.
@@ -104,10 +105,10 @@ flowchart TD
 ## 🗂 Repository Structure
 
 ```
-AppSleuth/
+Argus/
 ├── packages/                   # Core Platform Diagnostic SDKs
-│   └── web-sdk/                # @appsleuth/web JavaScript / TypeScript Diagnostic SDK
-│       ├── appsleuth-web.js    # Standalone browser bundle (zero build step needed)
+│   └── web-sdk/                # @argus/web JavaScript / TypeScript Diagnostic SDK
+│       ├── argus-web.js        # Standalone browser bundle (zero build step needed)
 │       └── src/                # Interceptors (Fetch, Nav, Click, Error) & DiagnosticWidget
 ├── assets/                     # Demo screenshots and screen recordings
 │   ├── demo-video.mp4
@@ -156,7 +157,7 @@ The diagnostic engine compares the paths:
 
 ## 🚀 Example Applications
 
-AppSleuth is designed with clean platform decoupling — Android and Web modules run completely independently:
+Argus is designed with clean platform decoupling — Android and Web modules run completely independently:
 
 ### 1. Web Checkout Demo (`examples/web-checkout-demo/`)
 * **Zero-Setup Testing:** Open [`examples/web-checkout-demo/index.html`](examples/web-checkout-demo/index.html) in any browser.
@@ -172,7 +173,7 @@ AppSleuth is designed with clean platform decoupling — Android and Web modules
 
 ## 🧠 Generating Expected Graphs: White-Box vs. Black-Box Behavioral Reconstruction
 
-AppSleuth supports both operational paradigms depending on what assets you have access to:
+Argus supports both operational paradigms depending on what assets you have access to:
 
 | Paradigm | When to Use | Tool / Skill | How It Works |
 |---|---|---|---|
@@ -197,7 +198,7 @@ python skills/web-graph-extractor/scripts/extract_web_context.py /path/to/web-re
 - [x] **Phase 1:** Android Diagnostic SDK (Activity tracking, user action wrappers, OkHttp interceptor).
 - [x] **Phase 1:** On-device zero-ADB export (MediaStore Downloads & native share sheet).
 - [x] **Phase 1:** 2D and 3D interactive graph visualizers.
-- [x] **Phase 2:** Web Diagnostic SDK (`@appsleuth/web`) & in-browser floating diagnostic widget.
+- [x] **Phase 2:** Web Diagnostic SDK (`@argus/web`) & in-browser floating diagnostic widget.
 - [x] **Phase 2:** Web E-Commerce Checkout interactive demo with network scenario simulator.
 - [x] **Phase 2:** Test-driven automated behavioral graph extraction for Android & Web (`skills/`).
 - [x] **Phase 2:** Black-Box Behavioral Reconstruction for Web (`tools/web-crawler/`).
@@ -210,7 +211,7 @@ python skills/web-graph-extractor/scripts/extract_web_context.py /path/to/web-re
 
 ## 🤝 Contributing
 
-AppSleuth is designed to become a universal, cross-platform diagnostic layer for modern software. We welcome contributions for:
+Argus is designed to become a universal, cross-platform diagnostic layer for modern software. We welcome contributions for:
 - Platform SDKs (iOS / Swift, React Native, Flutter, Web / React)
 - Graph extraction tooling and linters
 - Diagnostic LLM prompts and fine-tuned benchmark datasets

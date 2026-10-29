@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0",
   "appVersion": "1.0.0",
-  "description": "Expected behavioral graph for AppSleuth demo app. Defines all valid states, transitions, and outcomes for the SendEmailWithAttachment workflow. Generated from app source code after implementation.",
+  "description": "Expected behavioral graph for Argus demo app. Defines all valid states, transitions, and outcomes for the SendEmailWithAttachment workflow. Generated from app source code after implementation.",
   "workflows": [
     {
       "id": "wf_send_email_attachment",

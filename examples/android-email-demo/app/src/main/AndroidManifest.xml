@@ -6,7 +6,7 @@
     <application
         android:name=".AppSleuthApplication"
         android:label="@string/app_name"
-        android:theme="@style/Theme.AppSleuth"
+        android:theme="@style/Theme.Argus"
         android:usesCleartextTraffic="true"
         android:allowBackup="true">
 

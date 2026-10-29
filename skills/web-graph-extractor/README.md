@@ -1,6 +1,6 @@
-# AppSleuth Web Graph Extractor Skill
+# Argus Web Graph Extractor Skill
 
-Specialized tool and agent skill for generating **AppSleuth Expected Behavioral Graphs** from web applications (React, Next.js, Vue, vanilla JS) and E2E test suites (Playwright, Cypress, Vitest).
+Specialized tool and agent skill for generating **Argus Expected Behavioral Graphs** from web applications (React, Next.js, Vue, vanilla JS) and E2E test suites (Playwright, Cypress, Vitest).
 
 ---
 

@@ -1,15 +1,16 @@
 {
-  "name": "@appsleuth/web",
+  "name": "@argus/web",
   "version": "1.0.0",
-  "description": "AppSleuth Web Diagnostic SDK — Automated runtime behavioral graph recording for web applications",
-  "main": "appsleuth-web.js",
+  "description": "Argus Web Diagnostic SDK — Automated runtime behavioral graph recording for web applications",
+  "main": "argus-web.js",
   "module": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
-    "appsleuth",
+    "argus",
+    "systemsleuth",
     "self-diagnosis",
     "behavioral-graph",
     "tracing",

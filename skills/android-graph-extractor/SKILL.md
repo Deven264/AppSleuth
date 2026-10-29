@@ -1,9 +1,9 @@
 ---
 name: graph-extractor
-description: Analyzes an existing application codebase and its test suites to automatically generate an AppSleuth Expected Behavioral Graph (expected_graph.json).
+description: Analyzes an existing application codebase and its test suites to automatically generate an Argus Expected Behavioral Graph (expected_graph.json).
 ---
 
-# AppSleuth Graph Extractor Skill
+# Argus Graph Extractor Skill
 
 This skill guides an AI agent or LLM through reverse-engineering an **Expected Behavioral Graph** from an application codebase. It uses **test files as the primary behavioral specification**, augmented by navigation routes, state definitions, and API interfaces.
 
@@ -20,7 +20,7 @@ flowchart TD
     P3["Pillar 3: State Machines\n(Sealed classes, Enums, StateFlow)\nValid app states & outcomes"] --> Synthesizer
     P4["Pillar 4: Network Contracts\n(Retrofit, Ktor, Endpoints)\nAPI calls & latency constraints"] --> Synthesizer
 
-    Synthesizer["AppSleuth Synthesizer"] --> Output["expected_graph.json\n(Workflows, Nodes, Edges, Paths)"]
+    Synthesizer["Argus Synthesizer"] --> Output["expected_graph.json\n(Workflows, Nodes, Edges, Paths)"]
 ```
 
 ---
@@ -56,7 +56,7 @@ Locate HTTP calls:
 * Map each request to an `API_CALL` node.
 * Map responses to `API_RESULT` nodes with expected status codes or timeouts.
 
-### Step 5: Synthesize into Standard AppSleuth Graph Schema
+### Step 5: Synthesize into Standard Argus Graph Schema
 For each workflow identified:
 1. Define `entryNode` and `terminalNodes`.
 2. Construct the sequence of `nodes` and `edges`.

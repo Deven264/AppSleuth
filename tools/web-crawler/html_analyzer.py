@@ -1,5 +1,5 @@
 """
-AppSleuth HTML & DOM Analyzer
+Argus HTML & DOM Analyzer
 
 Parses web page HTML, DOM nodes, interactive elements, forms, and embedded scripts
 to extract the behavioral entities needed for graph synthesis.
@@ -100,7 +100,8 @@ class PageContentParser(HTMLParser):
             label = "".join(self._current_button_text).strip()
             attrs = getattr(self, "_current_button_attrs", {})
             track_label = (
-                attrs.get("data-appsleuth-track")
+                attrs.get("data-argus-track")
+                or attrs.get("data-appsleuth-track")
                 or attrs.get("data-track")
                 or attrs.get("aria-label")
                 or label
@@ -113,7 +114,7 @@ class PageContentParser(HTMLParser):
                 "id": attrs.get("id", ""),
                 "label": track_label,
                 "type": "button",
-                "track": attrs.get("data-appsleuth-track") or attrs.get("data-track")
+                "track": attrs.get("data-argus-track") or attrs.get("data-appsleuth-track") or attrs.get("data-track")
             })
 
     def handle_data(self, data: str):

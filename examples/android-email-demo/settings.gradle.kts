@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "AppSleuth"
+rootProject.name = "Argus"
 include(":app")

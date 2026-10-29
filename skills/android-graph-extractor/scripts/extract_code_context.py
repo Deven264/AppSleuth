@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AppSleuth Codebase Context Extractor
+Argus Codebase Context Extractor
 
 Scans an application repository (Android, iOS, Web) and extracts:
 1. Test files (The primary ground truth for behavioral scenarios)
@@ -9,7 +9,7 @@ Scans an application repository (Android, iOS, Web) and extracts:
 4. Network & API contracts (Endpoints, status codes, timeouts)
 
 Outputs a consolidated markdown file that can be passed directly to an LLM
-along with the AppSleuth System Prompt to generate expected_graph.json.
+along with the Argus System Prompt to generate expected_graph.json.
 """
 
 import os
@@ -84,9 +84,9 @@ def scan_project(root_path: Path):
 
 def generate_markdown(root_path: Path, categories: dict, output_file: Path):
     lines = []
-    lines.append("# AppSleuth Codebase Context Extraction")
+    lines.append("# Argus Codebase Context Extraction")
     lines.append(f"\n**Root Project:** `{root_path.resolve()}`\n")
-    lines.append("> Provide this document to the AppSleuth Graph Extractor LLM to generate `expected_graph.json`.\n")
+    lines.append("> Provide this document to the Argus Graph Extractor LLM to generate `expected_graph.json`.\n")
 
     for category, files in categories.items():
         lines.append(f"## {category} ({len(files)} files found)\n")
@@ -109,7 +109,7 @@ def generate_markdown(root_path: Path, categories: dict, output_file: Path):
     print(f"[OK] Context extraction complete. Saved to: {output_file.resolve()}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract relevant code context for AppSleuth behavioral graph generation.")
+    parser = argparse.ArgumentParser(description="Extract relevant code context for Argus behavioral graph generation.")
     parser.add_argument("project_dir", nargs="?", default=".", help="Path to the application root directory")
     parser.add_argument("-o", "--output", default="codebase_context.md", help="Output markdown file path")
     args = parser.parse_args()

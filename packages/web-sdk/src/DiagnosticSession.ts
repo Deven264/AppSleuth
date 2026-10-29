@@ -4,7 +4,7 @@ import { setupNavigationTracker } from './interceptors/navigationTracker';
 import { setupUiTracker } from './interceptors/uiTracker';
 import { setupErrorTracker } from './interceptors/errorTracker';
 import { DiagnosticWidget } from './ui/DiagnosticWidget';
-import { AppSleuthConfig, ExecutionGraph } from './types';
+import { ArgusConfig, ExecutionGraph } from './types';
 
 export class DiagnosticSession {
   private static sessionId: string = '';
@@ -14,7 +14,7 @@ export class DiagnosticSession {
   private static cleanups: Array<() => void> = [];
   private static widget: DiagnosticWidget | null = null;
 
-  public static start(config: AppSleuthConfig = {}): void {
+  public static start(config: ArgusConfig = {}): void {
     if (this.isInitialized) return;
     this.isInitialized = true;
 
@@ -50,7 +50,7 @@ export class DiagnosticSession {
       this.widget.mount();
     }
 
-    console.log(`[AppSleuth Web] Diagnostic session initialized (${this.sessionId})`);
+    console.log(`[Argus Web] Diagnostic session initialized (${this.sessionId})`);
   }
 
   public static recordSessionStart(): void {
@@ -125,7 +125,9 @@ export class DiagnosticSession {
   private static flushToStorage(): void {
     if (typeof window === 'undefined' || !window.sessionStorage) return;
     try {
-      window.sessionStorage.setItem('appsleuth_execution_graph', this.exportJson());
+      const graph = this.exportJson();
+      window.sessionStorage.setItem('argus_execution_graph', graph);
+      window.sessionStorage.setItem('appsleuth_execution_graph', graph);
     } catch {
       // Storage quota or restriction
     }

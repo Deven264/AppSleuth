@@ -5,5 +5,8 @@ export { DiagnosticSession, graphBuilder };
 
 // Attach to window for easy direct script-tag usage
 if (typeof window !== 'undefined') {
-  (window as unknown as { AppSleuth: typeof DiagnosticSession }).AppSleuth = DiagnosticSession;
+  const win = window as unknown as Record<string, unknown>;
+  win.Argus = DiagnosticSession;
+  win.SystemSleuth = DiagnosticSession;
+  win.AppSleuth = DiagnosticSession; // Backwards compatibility
 }

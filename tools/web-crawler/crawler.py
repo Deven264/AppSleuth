@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-AppSleuth Web Crawler & Behavioral Graph Generator
+Argus Web Crawler & Behavioral Graph Generator
 
-Takes any website URL or local HTML file and generates an AppSleuth Expected Behavioral Graph
+Takes any website URL or local HTML file and generates an Argus Expected Behavioral Graph
 (expected_graph.json) without requiring access to the application source code.
 """
 
@@ -25,7 +25,7 @@ def fetch_page_content(target: str) -> tuple[str, str]:
     if target.startswith("http://") or target.startswith("https://"):
         print(f"[*] Crawling remote web target: {target}")
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 AppSleuth/1.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Argus/1.0"
         }
         resp = requests.get(target, headers=headers, timeout=12)
         resp.raise_for_status()
@@ -47,7 +47,7 @@ def fetch_page_content(target: str) -> tuple[str, str]:
         alt_target = "https://" + target
         print(f"[*] Attempting HTTPS fetch: {alt_target}")
         headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 AppSleuth/1.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36 Argus/1.0"
         }
         resp = requests.get(alt_target, headers=headers, timeout=12)
         resp.raise_for_status()
@@ -55,7 +55,7 @@ def fetch_page_content(target: str) -> tuple[str, str]:
 
 def main():
     parser = argparse.ArgumentParser(
-        description="AppSleuth Web Crawler — Generate an expected behavioral graph from any website URL or HTML file."
+        description="Argus Web Crawler — Generate an expected behavioral graph from any website URL or HTML file."
     )
     parser.add_argument("target", help="Website URL (e.g. https://example.com/checkout) or local HTML file path")
     parser.add_argument("-o", "--output", default="expected_graph.json", help="Output path for the generated expected_graph.json")
@@ -79,7 +79,7 @@ def main():
     for ep in analysis.api_endpoints:
         print(f"      * {ep['method']} {ep['path']} ({ep['source']})")
 
-    print(f"[*] Synthesizing AppSleuth Expected Behavioral Graph...")
+    print(f"[*] Synthesizing Argus Expected Behavioral Graph...")
     graph = synthesize_web_graph(analysis, app_version=args.app_version)
 
     output_path = Path(args.output).resolve()

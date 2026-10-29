@@ -1,10 +1,10 @@
-# AppSleuth Web Crawler — Black-Box Behavioral Reconstruction
+# Argus Web Crawler — Black-Box Behavioral Reconstruction
 
-Generate an **AppSleuth Expected Behavioral Graph** (`expected_graph.json`) from any live website URL or HTML page without needing access to the original source code repository via **Black-Box Behavioral Reconstruction**.
+Generate an **Argus Expected Behavioral Graph** (`expected_graph.json`) from any live website URL or HTML page without needing access to the original source code repository via **Black-Box Behavioral Reconstruction**.
 
 ---
 
-## 🎯 White-Box vs. Black-Box in AppSleuth
+## 🎯 White-Box vs. Black-Box in Argus
 
 | Mode | Paradigm | Tool to Use | Input |
 |---|---|---|---|
@@ -37,7 +37,7 @@ python tools/web-crawler/crawler.py examples/web-checkout-demo/index.html -o exp
 2. **Domain Classification:**
    * Automatically identifies the workflow type (`ECommerceCheckout`, `UserAuthentication`, `UserRegistration`, `SearchAndFilter`, `ContactSubmission`).
 3. **Graph Synthesis (`graph_synthesizer.py`):**
-   * Generates nodes conforming to the AppSleuth schema (`SESSION_START`, `PAGE_VIEW`, `USER_ACTION`, `STATE_CHANGE`, `API_CALL`, `API_RESULT`).
+   * Generates nodes conforming to the Argus schema (`SESSION_START`, `PAGE_VIEW`, `USER_ACTION`, `STATE_CHANGE`, `API_CALL`, `API_RESULT`).
    * Generates **Happy Path** (`happy_path`).
    * Generates **Known Failure Modes** (`timeout_failure_path`, `cors_error_path`) with divergence points (`divergesFromHappyPathAt`) and known root causes.
 

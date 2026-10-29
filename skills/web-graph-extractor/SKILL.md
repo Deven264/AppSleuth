@@ -1,11 +1,11 @@
 ---
 name: web-graph-extractor
-description: Analyzes web application codebases (React, Next.js, Vue, vanilla JS) and E2E test suites (Playwright, Cypress) to generate an AppSleuth Expected Behavioral Graph (expected_graph.json).
+description: Analyzes web application codebases (React, Next.js, Vue, vanilla JS) and E2E test suites (Playwright, Cypress) to generate an Argus Expected Behavioral Graph (expected_graph.json).
 ---
 
-# AppSleuth Web Graph Extractor Skill
+# Argus Web Graph Extractor Skill
 
-This skill extracts an **AppSleuth Expected Behavioral Graph** from web applications by analyzing **E2E tests (Playwright, Cypress, Vitest)** alongside router definitions and API clients.
+This skill extracts an **Argus Expected Behavioral Graph** from web applications by analyzing **E2E tests (Playwright, Cypress, Vitest)** alongside router definitions and API clients.
 
 ---
 
@@ -18,14 +18,14 @@ flowchart TD
     P3["3. UI Actions & State\n(Form submits, Redux, Zustand, Pinia)\nGenerates USER_ACTION & STATE_CHANGE"] --> Synthesizer
     P4["4. API Clients\n(Fetch, Axios, TanStack Query, TRPC)\nGenerates API_CALL & API_RESULT"] --> Synthesizer
 
-    Synthesizer["AppSleuth Web Synthesizer"] --> Output["expected_graph.json"]
+    Synthesizer["Argus Web Synthesizer"] --> Output["expected_graph.json"]
 ```
 
 ---
 
 ## Web Node Mapping Rules
 
-| Web Code Pattern | AppSleuth Node Type | Example Label |
+| Web Code Pattern | Argus Node Type | Example Label |
 |---|---|---|
 | `page.goto('/checkout')` or `<Route path="/checkout">` | `PAGE_VIEW` | `PageView:/checkout` |
 | `page.click('button#pay')` or `<button onClick=...>` | `USER_ACTION` | `Click:PayNowButton` |

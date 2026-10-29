@@ -1,6 +1,6 @@
-# AppSleuth — Android Demo Application
+# Argus — Android Demo Application
 
-This is an example Android application instrumented with the **AppSleuth Diagnostic SDK**.
+This is an example Android application instrumented with the **Argus Diagnostic SDK**.
 
 ## Overview
 

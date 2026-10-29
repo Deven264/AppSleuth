@@ -1,4 +1,4 @@
-# @appsleuth/web — AppSleuth Web Diagnostic SDK
+# @argus/web — Argus Web Diagnostic SDK
 
 The official JavaScript/TypeScript SDK for recording runtime execution graphs in web applications.
 
@@ -12,7 +12,7 @@ The official JavaScript/TypeScript SDK for recording runtime execution graphs in
   * **Navigation & Routing:** Listens to `popstate`, `hashchange`, and patches `pushState`/`replaceState` for client-side SPA routers.
   * **User Actions:** Automatically records clicks on buttons, links, and forms.
   * **Errors:** Captures unhandled JavaScript exceptions and promise rejections.
-* **In-Page Diagnostic Pill & Modal:** A floating UI widget (`🔍 AppSleuth`) that allows users or QA engineers to inspect, copy, or download the recorded graph in 1 click with zero terminal tools.
+* **In-Page Diagnostic Pill & Modal:** A floating UI widget (`👁️ Argus`) that allows users or QA engineers to inspect, copy, or download the recorded graph in 1 click with zero terminal tools.
 
 ---
 
@@ -23,9 +23,9 @@ The official JavaScript/TypeScript SDK for recording runtime execution graphs in
 Add the script tag before your application scripts:
 
 ```html
-<script src="path/to/appsleuth-web.js"></script>
+<script src="path/to/argus-web.js"></script>
 <script>
-  AppSleuth.start({
+  Argus.start({
     appVersion: '1.0.0',
     showWidget: true // Renders in-page diagnostic pill in bottom-right corner
   });
@@ -35,7 +35,7 @@ Add the script tag before your application scripts:
 ### Option 2: ES Module / NPM
 
 ```typescript
-import { DiagnosticSession } from '@appsleuth/web';
+import { DiagnosticSession } from '@argus/web';
 
 DiagnosticSession.start({
   appVersion: '1.0.0',
@@ -53,12 +53,12 @@ DiagnosticSession.start({
 
 ```typescript
 // Track internal state changes
-AppSleuth.trackStateChange('CheckoutStep:Payment', { cartTotal: 199.00 });
+Argus.trackStateChange('CheckoutStep:Payment', { cartTotal: 199.00 });
 
 // Track specific custom user actions
-AppSleuth.trackAction('ApplyCouponCode', { code: 'DISCOUNT20' });
+Argus.trackAction('ApplyCouponCode', { code: 'DISCOUNT20' });
 
 // Export or download recorded execution graph
-const graphJson = AppSleuth.exportJson();
-AppSleuth.downloadJson('my_execution_graph.json');
+const graphJson = Argus.exportJson();
+Argus.downloadJson('my_execution_graph.json');
 ```

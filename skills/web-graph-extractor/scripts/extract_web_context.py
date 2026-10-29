@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-AppSleuth Web Context Extractor
+Argus Web Context Extractor
 
 Scans a web application directory and extracts:
 1. E2E & Component Tests (Playwright, Cypress, Vitest, Jest)
@@ -8,7 +8,7 @@ Scans a web application directory and extracts:
 3. API clients & endpoints (Fetch, Axios, TanStack Query)
 4. State models (Redux, Zustand, Vuex, Context)
 
-Outputs a consolidated markdown document ready for the AppSleuth Web Extractor LLM.
+Outputs a consolidated markdown document ready for the Argus Web Extractor LLM.
 """
 
 import os
@@ -72,9 +72,9 @@ def scan_web_project(root_path: Path):
 
 def generate_markdown(root_path: Path, categories: dict, output_file: Path):
     lines = []
-    lines.append("# AppSleuth Web Context Extraction")
+    lines.append("# Argus Web Context Extraction")
     lines.append(f"\n**Root Project:** `{root_path.resolve()}`\n")
-    lines.append("> Pass this to the AppSleuth Web Graph Extractor LLM to generate `expected_graph.json`.\n")
+    lines.append("> Pass this to the Argus Web Graph Extractor LLM to generate `expected_graph.json`.\n")
 
     for category, files in categories.items():
         lines.append(f"## {category} ({len(files)} files found)\n")
@@ -100,7 +100,7 @@ def generate_markdown(root_path: Path, categories: dict, output_file: Path):
     print(f"[OK] Web context extraction complete. Saved to: {output_file.resolve()}")
 
 def main():
-    parser = argparse.ArgumentParser(description="Extract web codebase context for AppSleuth behavioral graph generation.")
+    parser = argparse.ArgumentParser(description="Extract web codebase context for Argus behavioral graph generation.")
     parser.add_argument("project_dir", nargs="?", default=".", help="Path to web application directory")
     parser.add_argument("-o", "--output", default="web_codebase_context.md", help="Output file")
     args = parser.parse_args()

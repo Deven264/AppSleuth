@@ -2,7 +2,7 @@
   "schemaVersion": "1.0",
   "appVersion": "1.2.0",
   "platform": "web",
-  "description": "Expected behavioral graph for SleuthStore Web Checkout workflow.",
+  "description": "Expected behavioral graph for Argus Web Checkout workflow.",
   "workflows": [
     {
       "id": "wf_ecommerce_checkout",
@@ -16,7 +16,7 @@
           "type": "SESSION_START",
           "label": "SessionStart",
           "expectedOutcome": "SUCCESS",
-          "description": "User loaded the web application. AppSleuth Web SDK initialized."
+          "description": "User loaded the web application. Argus Web SDK initialized."
         },
         {
           "id": "n_page_checkout",

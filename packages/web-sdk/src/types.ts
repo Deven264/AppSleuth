@@ -34,7 +34,7 @@ export interface ExecutionGraph {
   edges: GraphEdge[];
 }
 
-export interface AppSleuthConfig {
+export interface ArgusConfig {
   appVersion?: string;
   autoTrackClicks?: boolean;
   autoTrackNavigation?: boolean;
@@ -43,3 +43,5 @@ export interface AppSleuthConfig {
   showWidget?: boolean;
   widgetPosition?: 'bottom-right' | 'bottom-left';
 }
+
+export type AppSleuthConfig = ArgusConfig;

@@ -12,7 +12,7 @@ export class DiagnosticWidget {
     if (typeof document === 'undefined') return;
 
     this.container = document.createElement('div');
-    this.container.id = 'appsleuth-widget-root';
+    this.container.id = 'argus-widget-root';
     document.body.appendChild(this.container);
 
     this.render();
@@ -42,7 +42,7 @@ export class DiagnosticWidget {
 
     this.container.innerHTML = `
       <style>
-        #appsleuth-widget-root {
+        #argus-widget-root {
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
           font-size: 13px;
           z-index: 999999;
@@ -188,7 +188,7 @@ export class DiagnosticWidget {
       </style>
 
       <div class="as-pill" id="as-pill-btn">
-        <span>🔍 AppSleuth</span>
+        <span>👁️ Argus</span>
         <span class="as-badge">${hasFailure ? `⚠️ ${failureCount} failure` : `${nodes.length} nodes`}</span>
       </div>
 

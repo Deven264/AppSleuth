@@ -1,8 +1,8 @@
 """
-AppSleuth Web Graph Synthesizer
+Argus Web Graph Synthesizer
 
 Transforms black-box crawled web entities (DOM elements, buttons, forms, endpoints)
-into a structured AppSleuth Expected Behavioral Graph conforming to the core schema.
+into a structured Argus Expected Behavioral Graph conforming to the core schema.
 """
 
 from typing import Dict, Any, List
@@ -22,7 +22,7 @@ def synthesize_web_graph(analysis: WebPageAnalysis, app_version: str = "1.0.0") 
         "type": "SESSION_START",
         "label": "SessionStart",
         "expectedOutcome": "SUCCESS",
-        "description": "User loaded the web application. AppSleuth Web SDK initialized."
+        "description": "User loaded the web application. Argus Web SDK initialized."
     }
     nodes.append(n_session_start)
 
@@ -282,7 +282,7 @@ def synthesize_web_graph(analysis: WebPageAnalysis, app_version: str = "1.0.0") 
         "appVersion": app_version,
         "platform": "web",
         "crawledUrl": analysis.url,
-        "description": f"AppSleuth black-box expected behavioral graph synthesized for {analysis.url}",
+        "description": f"Argus black-box expected behavioral graph synthesized for {analysis.url}",
         "workflows": [
             {
                 "id": workflow_id,

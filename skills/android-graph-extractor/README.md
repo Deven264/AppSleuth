@@ -1,4 +1,4 @@
-# AppSleuth Graph Extractor Skill
+# Argus Graph Extractor Skill
 
 The **Graph Extractor Skill** enables any AI agent or LLM (Claude, Gemini, GPT-4o, etc.) to reverse-engineer an **Expected Behavioral Graph** (`expected_graph.json`) from an existing codebase by analyzing its tests, UI screens, navigation, and API contracts.
 
@@ -23,7 +23,7 @@ For larger codebases, use the helper script to scan and extract only the relevan
 python scripts/extract_code_context.py /path/to/your/app -o codebase_context.md
 
 # 2. Provide codebase_context.md + prompts/system_prompt.md to your LLM of choice
-# The LLM outputs a valid expected_graph.json conforming to the AppSleuth schema.
+# The LLM outputs a valid expected_graph.json conforming to the Argus schema.
 ```
 
 ### Option 2: Direct Agentic Extraction
@@ -31,7 +31,7 @@ python scripts/extract_code_context.py /path/to/your/app -o codebase_context.md
 If you are using an agentic environment (such as Google Antigravity, Claude Code, Cursor, or Aider):
 1. Activate the `graph-extractor` skill.
 2. Direct the agent:
-   > *"Extract the AppSleuth Expected Behavioral Graph for the workflow tested in `ComposeEmailWorkflowTest.kt`."*
+   > *"Extract the Argus Expected Behavioral Graph for the workflow tested in `ComposeEmailWorkflowTest.kt`."*
 3. The agent reads the tests, traverses the navigation and network layers, and generates `expected_graph.json`.
 
 ---

@@ -8,11 +8,12 @@ export function setupUiTracker(): () => void {
     if (!target) return;
 
     // Find the closest interactive element
-    const interactive = target.closest('button, a, input[type="submit"], input[type="button"], [data-appsleuth-track], [role="button"]') as HTMLElement | null;
+    const interactive = target.closest('button, a, input[type="submit"], input[type="button"], [data-argus-track], [data-appsleuth-track], [role="button"]') as HTMLElement | null;
     if (!interactive) return;
 
     // Extract meaningful label
-    let label = interactive.getAttribute('data-appsleuth-track')
+    let label = interactive.getAttribute('data-argus-track')
+      || interactive.getAttribute('data-appsleuth-track')
       || interactive.getAttribute('data-track')
       || interactive.getAttribute('aria-label')
       || (interactive instanceof HTMLInputElement ? interactive.value : '')

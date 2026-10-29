@@ -1,5 +1,5 @@
 /**
- * AppSleuth Web Diagnostic SDK (Standalone Browser Build)
+ * Argus: SystemSleuth Web Diagnostic SDK (Standalone Browser Build)
  * Version: 1.0.0
  * License: Apache-2.0
  */
@@ -77,7 +77,7 @@
 
     notifyListeners() {
       for (const listener of this.listeners) {
-        try { listener(); } catch (err) { console.error('[AppSleuth] Listener error:', err); }
+        try { listener(); } catch (err) { console.error('[Argus] Listener error:', err); }
       }
     }
 
@@ -233,13 +233,14 @@
       const target = e.target;
       if (!target || typeof target.closest !== 'function') return;
 
-      const interactive = target.closest('button, a, input[type="submit"], input[type="button"], [data-appsleuth-track], [role="button"]');
+      const interactive = target.closest('button, a, input[type="submit"], input[type="button"], [data-argus-track], [data-appsleuth-track], [role="button"]');
       if (!interactive) return;
 
       // Do not track clicks inside our own diagnostic widget!
-      if (interactive.closest('#appsleuth-widget-root')) return;
+      if (interactive.closest('#argus-widget-root') || interactive.closest('#appsleuth-widget-root')) return;
 
-      let label = interactive.getAttribute('data-appsleuth-track')
+      let label = interactive.getAttribute('data-argus-track')
+        || interactive.getAttribute('data-appsleuth-track')
         || interactive.getAttribute('data-track')
         || interactive.getAttribute('aria-label')
         || (interactive.tagName === 'INPUT' ? interactive.value : '')
@@ -314,7 +315,7 @@
     mount() {
       if (typeof document === 'undefined') return;
       this.container = document.createElement('div');
-      this.container.id = 'appsleuth-widget-root';
+      this.container.id = 'argus-widget-root';
       document.body.appendChild(this.container);
       this.render();
       this.unsubscribe = graphBuilder.subscribe(() => this.render());
@@ -343,7 +344,7 @@
 
       this.container.innerHTML = `
         <style>
-          #appsleuth-widget-root {
+          #argus-widget-root {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             font-size: 13px;
             z-index: 999999;
@@ -429,7 +430,7 @@
         </style>
 
         <div class="as-pill" id="as-pill-btn">
-          <span>🔍 AppSleuth</span>
+          <span>👁️ Argus</span>
           <span class="as-badge">${hasFailure ? '⚠️ ' + failureCount + ' failure' : nodes.length + ' nodes'}</span>
         </div>
 
@@ -529,7 +530,7 @@
         this.widget.mount();
       }
 
-      console.log(`[AppSleuth Web] Diagnostic session initialized (${this.sessionId})`);
+      console.log(`[Argus Web] Diagnostic session initialized (${this.sessionId})`);
     }
 
     static recordSessionStart() {
@@ -603,7 +604,9 @@
     static flushToStorage() {
       if (typeof window === 'undefined' || !window.sessionStorage) return;
       try {
-        window.sessionStorage.setItem('appsleuth_execution_graph', this.exportJson());
+        const json = this.exportJson();
+        window.sessionStorage.setItem('argus_execution_graph', json);
+        window.sessionStorage.setItem('appsleuth_execution_graph', json);
       } catch (_) {}
     }
 
@@ -619,7 +622,10 @@
   }
 
   // Export to global scope
-  global.AppSleuth = DiagnosticSession;
+  global.Argus = DiagnosticSession;
+  global.SystemSleuth = DiagnosticSession;
+  global.AppSleuth = DiagnosticSession; // Backwards compatibility
+  global.ArgusGraphBuilder = graphBuilder;
   global.AppSleuthGraphBuilder = graphBuilder;
 
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -3,9 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SleuthStore — Checkout Demo</title>
-  <!-- Load AppSleuth Web Diagnostic SDK -->
-  <script src="../../packages/web-sdk/appsleuth-web.js"></script>
+  <title>Argus — Checkout Demo</title>
+  <!-- Load Argus Web Diagnostic SDK -->
+  <script src="../../packages/web-sdk/argus-web.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -232,7 +232,7 @@
           <span>$268.92</span>
         </div>
 
-        <button class="btn-pay" id="btnPay" data-appsleuth-track="PayNowButton">
+        <button class="btn-pay" id="btnPay" data-argus-track="PayNowButton" data-appsleuth-track="PayNowButton">
           <span class="spinner" id="paySpinner"></span>
           <span id="payText">Pay $268.92</span>
         </button>
@@ -241,8 +241,8 @@
   </main>
 
   <script>
-    // 1. Initialize AppSleuth Web Diagnostic SDK
-    AppSleuth.start({
+    // 1. Initialize Argus Web Diagnostic SDK
+    Argus.start({
       appVersion: '1.2.0',
       showWidget: true, // In-browser floating diagnostic widget on bottom-right
       autoTrackClicks: true,
@@ -270,7 +270,7 @@
       payText.textContent = 'Processing Payment...';
 
       // Record State Change: ProcessingPayment
-      AppSleuth.trackStateChange('ProcessingPayment', {
+      Argus.trackStateChange('ProcessingPayment', {
         amount: 268.92,
         currency: 'USD',
         scenario: simScenario.value
@@ -296,7 +296,7 @@
 
         } else if (scenario === 'cors') {
           // Simulate CORS Preflight failure
-          await fetch('https://invalid-gateway.appsleuth-mock.internal/charge', {
+          await fetch('https://invalid-gateway.argus-mock.internal/charge', {
             method: 'POST',
             mode: 'cors',
             headers: { 'X-Simulated-Header': 'fail' },
@@ -309,7 +309,7 @@
           // Issue dummy request to record 200 OK
           await fetch('data:application/json,{"status":"success","orderId":"ORD-9821"}');
           
-          AppSleuth.trackStateChange('OrderConfirmed', { orderId: 'ORD-9821' }, 'SUCCESS');
+          Argus.trackStateChange('OrderConfirmed', { orderId: 'ORD-9821' }, 'SUCCESS');
           successBox.style.display = 'block';
         }
 
@@ -318,7 +318,7 @@
 
         // Record failure state change
         const isTimeout = scenario === 'timeout';
-        AppSleuth.trackStateChange('PaymentFailed', {
+        Argus.trackStateChange('PaymentFailed', {
           reason: isTimeout ? 'gateway_timeout' : 'cors_network_error',
           errorMessage: err.message
         }, isTimeout ? 'TIMEOUT' : 'FAILURE');
