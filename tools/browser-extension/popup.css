@@ -167,6 +167,44 @@ body {
   border-color: #38bdf8;
 }
 
+.select-input {
+  flex: 1;
+  background: #0f172a;
+  border: 1px solid #475569;
+  border-radius: 6px;
+  padding: 6px 8px;
+  color: #f8fafc;
+  font-size: 11px;
+}
+
+.select-input:focus {
+  outline: none;
+  border-color: #38bdf8;
+}
+
+.status-notice {
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid #334155;
+  color: #94a3b8;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.status-notice.error {
+  border-color: rgba(239, 68, 68, 0.5);
+  background: rgba(127, 29, 29, 0.2);
+  color: #fca5a5;
+}
+
+.status-notice.success {
+  border-color: rgba(16, 185, 129, 0.5);
+  background: rgba(6, 78, 59, 0.2);
+  color: #6ee7b7;
+}
+
 .settings-hint {
   font-size: 10px;
   color: #64748b;

@@ -12,6 +12,15 @@ let hoveredNodeId = null;
 let layoutNodes = [];
 let layoutEdges = [];
 
+// Fallback Model Candidate Hierarchy
+const CANDIDATE_FLASH_MODELS = [
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash-latest',
+  'gemini-1.5-flash-8b',
+  'gemini-1.5-flash'
+];
+
 // DOM Elements
 const pageTitleEl = document.getElementById('pageTitle');
 const pageUrlEl = document.getElementById('pageUrl');
@@ -21,6 +30,8 @@ const endpointCountEl = document.getElementById('endpointCount');
 const modelBadgeEl = document.getElementById('modelBadge');
 const apiKeyInput = document.getElementById('apiKeyInput');
 const saveKeyBtn = document.getElementById('saveKeyBtn');
+const synthesisModeSelect = document.getElementById('synthesisMode');
+const apiStatusNotice = document.getElementById('apiStatusNotice');
 const generateBtn = document.getElementById('generateBtn');
 const genSpinner = document.getElementById('genSpinner');
 const genBtnText = document.getElementById('genBtnText');
@@ -43,14 +54,18 @@ const tabEvidence = document.getElementById('tabEvidence');
 // 1. Initialization & Storage
 // -------------------------------------------------------------
 document.addEventListener('DOMContentLoaded', async () => {
-  // Load saved API key from chrome.storage
+  // Load saved settings from chrome.storage
   if (chrome.storage && chrome.storage.local) {
-    chrome.storage.local.get(['geminiApiKey'], (res) => {
+    chrome.storage.local.get(['geminiApiKey', 'synthesisMode'], (res) => {
       if (res && res.geminiApiKey) {
         apiKeyInput.value = res.geminiApiKey;
         updateEngineBadge(true);
       } else {
         updateEngineBadge(false);
+      }
+
+      if (res && res.synthesisMode && synthesisModeSelect) {
+        synthesisModeSelect.value = res.synthesisMode;
       }
     });
   }
@@ -58,14 +73,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Save API key handler
   saveKeyBtn.addEventListener('click', () => {
     const key = apiKeyInput.value.trim();
+    const mode = synthesisModeSelect ? synthesisModeSelect.value : 'single';
     if (chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({ geminiApiKey: key }, () => {
+      chrome.storage.local.set({ geminiApiKey: key, synthesisMode: mode }, () => {
         saveKeyBtn.innerText = '✓ Saved!';
         updateEngineBadge(!!key);
+        hideApiNotice();
         setTimeout(() => { saveKeyBtn.innerText = 'Save'; }, 1500);
       });
     }
   });
+
+  if (synthesisModeSelect) {
+    synthesisModeSelect.addEventListener('change', () => {
+      if (chrome.storage && chrome.storage.local) {
+        chrome.storage.local.set({ synthesisMode: synthesisModeSelect.value });
+      }
+    });
+  }
 
   // Setup Tab Navigation
   tabButtons.forEach(btn => {
@@ -100,7 +125,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function updateEngineBadge(hasKey) {
   if (hasKey) {
-    modelBadgeEl.innerText = 'Gemini 1.5 Flash AI';
+    modelBadgeEl.innerText = 'AI Hybrid Engine (Gemini)';
     modelBadgeEl.style.color = '#38bdf8';
     modelBadgeEl.style.borderColor = 'rgba(56, 189, 248, 0.4)';
     modelBadgeEl.style.background = 'rgba(56, 189, 248, 0.15)';
@@ -110,6 +135,18 @@ function updateEngineBadge(hasKey) {
     modelBadgeEl.style.borderColor = 'rgba(16, 185, 129, 0.4)';
     modelBadgeEl.style.background = 'rgba(16, 185, 129, 0.15)';
   }
+}
+
+function showApiNotice(msg, type = 'error') {
+  if (!apiStatusNotice) return;
+  apiStatusNotice.textContent = msg;
+  apiStatusNotice.className = `status-notice ${type}`;
+  apiStatusNotice.classList.remove('hidden');
+}
+
+function hideApiNotice() {
+  if (!apiStatusNotice) return;
+  apiStatusNotice.classList.add('hidden');
 }
 
 // -------------------------------------------------------------
@@ -188,22 +225,30 @@ async function onGenerateClicked() {
   generateBtn.disabled = true;
   genSpinner.style.display = 'inline-block';
   genBtnText.innerText = 'Synthesizing Behavioral Contract...';
+  hideApiNotice();
 
   const apiKey = apiKeyInput.value.trim();
+  const mode = synthesisModeSelect ? synthesisModeSelect.value : 'single';
 
   try {
     let graph = null;
-    let usedLlm = false;
+    let modelUsed = null;
 
     if (apiKey) {
       try {
-        genBtnText.innerText = 'Consulting Gemini 1.5 Flash...';
-        graph = await synthesizeWithGemini(extractedEvidence, apiKey);
-        if (graph && graph.workflows && graph.workflows.length > 0) {
-          usedLlm = true;
+        genBtnText.innerText = mode === 'deep' 
+          ? 'Initiating Multi-Stage AI Synthesis...' 
+          : 'Consulting Gemini AI...';
+        
+        const synthesisResult = await synthesizeWithGemini(extractedEvidence, apiKey, mode);
+        if (synthesisResult && synthesisResult.graph && synthesisResult.graph.workflows) {
+          graph = synthesisResult.graph;
+          modelUsed = synthesisResult.modelUsed;
+          showApiNotice(`Successfully synthesized via ${modelUsed} (${mode === 'deep' ? '2 requests' : '1 request'})`, 'success');
         }
       } catch (llmErr) {
         console.warn('Gemini synthesis failed, falling back to heuristic synthesizer:', llmErr);
+        showApiNotice(`AI Notice: ${llmErr.message} — used built-in offline engine.`, 'error');
       }
     }
 
@@ -233,10 +278,15 @@ async function onGenerateClicked() {
       selectNode(firstNode.id);
     }
 
-    if (usedLlm) {
-      modelBadgeEl.innerText = 'Synthesized via Gemini AI ✨';
+    if (modelUsed) {
+      modelBadgeEl.innerText = `${modelUsed} ✨`;
+      modelBadgeEl.style.color = '#38bdf8';
     } else if (apiKey) {
       modelBadgeEl.innerText = 'Built-in (Fallback from AI)';
+      modelBadgeEl.style.color = '#f59e0b';
+    } else {
+      modelBadgeEl.innerText = 'Built-in Engine (Offline)';
+      modelBadgeEl.style.color = '#10b981';
     }
 
   } catch (err) {
@@ -250,12 +300,198 @@ async function onGenerateClicked() {
 }
 
 // -------------------------------------------------------------
-// 4. LLM Synthesis via Google Gemini API
+// 4. Dynamic Model Discovery & Multi-Stage Gemini Synthesis
 // -------------------------------------------------------------
-async function synthesizeWithGemini(evidence, apiKey) {
-  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${encodeURIComponent(apiKey)}`;
+async function discoverActiveModel(apiKey) {
+  try {
+    const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`);
+    if (listRes.ok) {
+      const data = await listRes.json();
+      if (data && Array.isArray(data.models)) {
+        const supported = data.models.filter(m => 
+          Array.isArray(m.supportedGenerationMethods) && 
+          m.supportedGenerationMethods.includes('generateContent')
+        );
 
-  const prompt = `You are Argus: SystemSleuth's AI Behavioral Architect.
+        // Find best flash model available on user's API key
+        const preferred = supported.find(m => /2\.5-flash/i.test(m.name))
+          || supported.find(m => /2\.0-flash/i.test(m.name))
+          || supported.find(m => /1\.5-flash-latest/i.test(m.name))
+          || supported.find(m => /1\.5-flash/i.test(m.name))
+          || supported.find(m => /flash/i.test(m.name))
+          || supported[0];
+
+        if (preferred) {
+          const modelId = preferred.name.replace(/^models\//, '');
+          console.log('[Argus] Discovered active model for key:', modelId);
+          return modelId;
+        }
+      }
+    }
+  } catch (err) {
+    console.warn('[Argus] Dynamic model discovery skipped:', err);
+  }
+  return null;
+}
+
+async function callGeminiGenerate(modelName, prompt, apiKey) {
+  const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{
+        role: 'user',
+        parts: [{ text: prompt }]
+      }],
+      generationConfig: {
+        responseMimeType: 'application/json',
+        temperature: 0.2
+      }
+    })
+  });
+
+  if (!response.ok) {
+    let errorDetail = response.statusText;
+    try {
+      const errJson = await response.json();
+      if (errJson && errJson.error && errJson.error.message) {
+        errorDetail = errJson.error.message;
+      }
+    } catch (_) {}
+    throw new Error(`Google API returned HTTP ${response.status} for ${modelName}: ${errorDetail}`);
+  }
+
+  const json = await response.json();
+  const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!rawText) {
+    throw new Error(`Empty response content from ${modelName}`);
+  }
+
+  return JSON.parse(rawText);
+}
+
+async function synthesizeWithGemini(evidence, apiKey, mode = 'single') {
+  // Discover active model on this API key or build candidate chain
+  const discovered = await discoverActiveModel(apiKey);
+  const modelsToTry = discovered 
+    ? [discovered, ...CANDIDATE_FLASH_MODELS.filter(m => m !== discovered)]
+    : CANDIDATE_FLASH_MODELS;
+
+  let successfulModel = null;
+  let lastError = null;
+  let finalGraph = null;
+
+  if (mode === 'deep') {
+    // -------------------------------------------------------------
+    // MULTI-STAGE REASONING (2 Requests)
+    // -------------------------------------------------------------
+    // Request 1: Identify semantic user workflows and primary intent
+    genBtnText.innerText = 'Pass 1/2: Discovering User Workflows...';
+    const stage1Prompt = `You are Argus: SystemSleuth's AI Behavioral Architect.
+Analyze the following webpage evidence and identify the primary user workflow:
+URL: ${evidence.url}
+Title: ${evidence.title}
+Headings: ${JSON.stringify(evidence.headings || [])}
+Buttons: ${JSON.stringify(evidence.buttons || [])}
+Forms: ${JSON.stringify(evidence.forms || [])}
+Discovered Endpoints: ${JSON.stringify(evidence.scriptEndpoints || [])}
+
+Return JSON with structure:
+{
+  "workflowName": "string",
+  "workflowDescription": "string",
+  "primaryAction": "string",
+  "primaryEndpoint": "string",
+  "keyIntents": ["string"]
+}`;
+
+    let stage1Result = null;
+    for (const model of modelsToTry) {
+      try {
+        stage1Result = await callGeminiGenerate(model, stage1Prompt, apiKey);
+        successfulModel = model;
+        break;
+      } catch (err) {
+        lastError = err;
+      }
+    }
+
+    if (!stage1Result) {
+      throw lastError || new Error('Failed to complete Pass 1');
+    }
+
+    // Request 2: Synthesize failure modes, timeouts, CORS errors, and state machine
+    genBtnText.innerText = `Pass 2/2 (${successfulModel}): Synthesizing Failure Modes & SLA Boundaries...`;
+    const stage2Prompt = `You are Argus: SystemSleuth's AI Behavioral Architect.
+We have identified the core workflow architecture:
+${JSON.stringify(stage1Result, null, 2)}
+
+Webpage Evidence:
+URL: ${evidence.url}
+Title: ${evidence.title}
+Buttons: ${JSON.stringify(evidence.buttons || [])}
+Forms: ${JSON.stringify(evidence.forms || [])}
+Discovered Script Endpoints: ${JSON.stringify(evidence.scriptEndpoints || [])}
+
+Synthesize a complete, production-ready Argus Expected Behavioral Graph in JSON.
+Strictly adhere to this Argus JSON schema:
+{
+  "schemaVersion": "1.0",
+  "appVersion": "1.0.0",
+  "platform": "web",
+  "description": "Expected behavioral contract synthesized for ${evidence.title}",
+  "workflows": [
+    {
+      "id": "wf_${evidence.title.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 16) || 'web'}_workflow",
+      "name": "${stage1Result.workflowName || 'WebWorkflow'}",
+      "description": "${stage1Result.workflowDescription || 'Primary user interaction flow'}",
+      "entryNode": "n_session_start",
+      "terminalNodes": ["n_terminal_success", "n_terminal_timeout", "n_terminal_failure"],
+      "nodes": [
+        { "id": "n_session_start", "type": "SESSION_START", "label": "SessionStart", "expectedOutcome": "SUCCESS", "description": "User launched web application." },
+        { "id": "n_page_view", "type": "PAGE_VIEW", "label": "PageView:${new URL(evidence.url || 'https://example.com').pathname}", "expectedOutcome": "SUCCESS", "description": "Page loaded and interactive." },
+        { "id": "n_user_action", "type": "USER_ACTION", "label": "Click:${stage1Result.primaryAction || 'Submit'}", "expectedOutcome": "SUCCESS", "description": "User clicked primary action trigger." },
+        { "id": "n_state_processing", "type": "STATE_CHANGE", "label": "StateChange:Processing", "expectedOutcome": "PENDING", "description": "UI entered loading state." },
+        { "id": "n_api_call", "type": "API_CALL", "label": "ApiCall:${stage1Result.primaryEndpoint || '/api/v1/action'}", "expectedOutcome": "PENDING", "description": "Client dispatched network request.", "constraints": { "timeoutThresholdMs": 8000 } },
+        { "id": "n_api_result_success", "type": "API_RESULT", "label": "ApiResult:200:${stage1Result.primaryEndpoint || '/api/v1/action'}", "expectedOutcome": "SUCCESS", "description": "Server responded with HTTP 200 OK." },
+        { "id": "n_terminal_success", "type": "STATE_CHANGE", "label": "StateChange:Completed", "expectedOutcome": "SUCCESS", "description": "Workflow completed successfully.", "isTerminal": true },
+        { "id": "n_api_result_timeout", "type": "API_RESULT", "label": "ApiResult:TIMEOUT:${stage1Result.primaryEndpoint || '/api/v1/action'}", "expectedOutcome": "TIMEOUT", "description": "Request exceeded timeout threshold.", "isKnownFailureMode": true, "knownCauses": ["Backend latency spike", "Network packet drop"] },
+        { "id": "n_terminal_timeout", "type": "STATE_CHANGE", "label": "StateChange:TimeoutNotice", "expectedOutcome": "TIMEOUT", "description": "Timeout retry dialog shown.", "isTerminal": true, "isKnownFailureMode": true },
+        { "id": "n_api_result_failure", "type": "API_RESULT", "label": "ApiResult:FAILED:${stage1Result.primaryEndpoint || '/api/v1/action'}", "expectedOutcome": "FAILURE", "description": "Network request failed or CORS rejected.", "isKnownFailureMode": true, "knownCauses": ["CORS origin header missing", "HTTP 500 error"] },
+        { "id": "n_terminal_failure", "type": "STATE_CHANGE", "label": "StateChange:ErrorNotice", "expectedOutcome": "FAILURE", "description": "Error banner displayed.", "isTerminal": true, "isKnownFailureMode": true }
+      ],
+      "edges": [
+        { "from": "n_session_start", "to": "n_page_view", "label": "navigated_to", "path": "all" },
+        { "from": "n_page_view", "to": "n_user_action", "label": "user_triggered", "path": "all" },
+        { "from": "n_user_action", "to": "n_state_processing", "label": "state_changed", "path": "all" },
+        { "from": "n_state_processing", "to": "n_api_call", "label": "api_initiated", "path": "all" },
+        { "from": "n_api_call", "to": "n_api_result_success", "label": "api_responded", "path": "happy_path" },
+        { "from": "n_api_result_success", "to": "n_terminal_success", "label": "state_changed", "path": "happy_path" },
+        { "from": "n_api_call", "to": "n_api_result_timeout", "label": "api_responded", "path": "timeout_failure_path" },
+        { "from": "n_api_result_timeout", "to": "n_terminal_timeout", "label": "state_changed", "path": "timeout_failure_path" },
+        { "from": "n_api_call", "to": "n_api_result_failure", "label": "api_responded", "path": "network_failure_path" },
+        { "from": "n_api_result_failure", "to": "n_terminal_failure", "label": "state_changed", "path": "network_failure_path" }
+      ],
+      "paths": {
+        "happy_path": { "description": "Successful execution", "sequence": ["n_session_start", "n_page_view", "n_user_action", "n_state_processing", "n_api_call", "n_api_result_success", "n_terminal_success"] },
+        "timeout_failure_path": { "description": "Network timeout failure", "divergesFromHappyPathAt": "n_api_call", "sequence": ["n_session_start", "n_page_view", "n_user_action", "n_state_processing", "n_api_call", "n_api_result_timeout", "n_terminal_timeout"] },
+        "network_failure_path": { "description": "Network error or CORS rejection", "divergesFromHappyPathAt": "n_api_call", "sequence": ["n_session_start", "n_page_view", "n_user_action", "n_state_processing", "n_api_call", "n_api_result_failure", "n_terminal_failure"] }
+      }
+    }
+  ]
+}
+Return strictly JSON.`;
+
+    finalGraph = await callGeminiGenerate(successfulModel, stage2Prompt, apiKey);
+
+  } else {
+    // -------------------------------------------------------------
+    // STANDARD SINGLE-PASS SYNTHESIS (1 Request)
+    // -------------------------------------------------------------
+    genBtnText.innerText = 'Consulting Gemini AI...';
+    const singlePrompt = `You are Argus: SystemSleuth's AI Behavioral Architect.
 Argus is an automated behavioral diagnosis system that uses formal behavioral graphs (expected_graph.json) to detect and diagnose regressions, latency spikes, CORS/network failures, and UI state divergences.
 
 Analyze the following harvested webpage structural evidence and synthesize a complete, rigorous Argus Expected Behavioral Graph in JSON.
@@ -309,32 +545,22 @@ Requirements:
 }
 Synthesize accurate node IDs, meaningful user action labels from the buttons, and relevant API endpoints.`;
 
-  const response = await fetch(endpoint, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{
-        role: 'user',
-        parts: [{ text: prompt }]
-      }],
-      generationConfig: {
-        responseMimeType: 'application/json',
-        temperature: 0.2
+    for (const model of modelsToTry) {
+      try {
+        finalGraph = await callGeminiGenerate(model, singlePrompt, apiKey);
+        successfulModel = model;
+        break;
+      } catch (err) {
+        lastError = err;
       }
-    })
-  });
+    }
 
-  if (!response.ok) {
-    throw new Error(`Gemini API returned HTTP ${response.status}: ${response.statusText}`);
+    if (!finalGraph) {
+      throw lastError || new Error('All candidate models failed');
+    }
   }
 
-  const json = await response.json();
-  const rawText = json?.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!rawText) {
-    throw new Error('Empty response from Gemini API');
-  }
-
-  return JSON.parse(rawText);
+  return { graph: finalGraph, modelUsed: successfulModel };
 }
 
 // -------------------------------------------------------------

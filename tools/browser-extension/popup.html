@@ -40,6 +40,14 @@
           <input type="password" id="apiKeyInput" placeholder="AIzaSy... (Leave empty for instant offline engine)" />
           <button id="saveKeyBtn" class="btn btn-secondary">Save</button>
         </div>
+        <div class="input-row" style="margin-top: 4px;">
+          <label for="synthesisMode" class="input-label" style="align-self: center;">Synthesis Mode:</label>
+          <select id="synthesisMode" class="select-input">
+            <option value="single">⚡ Standard (1 Request: Fast Contract)</option>
+            <option value="deep">🔬 Deep Multi-Stage (2 Requests: Intent + Failure Matrix)</option>
+          </select>
+        </div>
+        <div id="apiStatusNotice" class="status-notice hidden"></div>
         <p class="settings-hint">Without an API key, Argus uses its built-in heuristic behavioral engine (100% offline & instant).</p>
       </div>
     </details>
