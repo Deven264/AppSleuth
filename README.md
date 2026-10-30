@@ -120,6 +120,7 @@ Argus/
 │   ├── graph-2d.html           # 2D canvas interactive graph
 │   └── graph-3d.html           # 3D orbital perspective visualizer
 ├── tools/                      # Standalone Developer & Extraction Tools
+│   ├── apk-analyzer/           # Black-Box Behavioral Reconstruction (Android APK & On-Device)
 │   └── web-crawler/            # Black-Box Behavioral Reconstruction (Live Web URL Crawler)
 ├── skills/                     # AI Skills & Extractor Tooling
 │   ├── android-graph-extractor/ # Test-driven extractor for Android test suites
@@ -178,16 +179,23 @@ Argus supports both operational paradigms depending on what assets you have acce
 | Paradigm | When to Use | Tool / Skill | How It Works |
 |---|---|---|---|
 | **White-Box Code Analysis** | You have application source code & test suites | [`skills/`](skills/) (`android-graph-extractor`, `web-graph-extractor`) | Scans executable test specs (Playwright, Cypress, Espresso, JUnit), routing tables, and API interfaces to extract expected behavior. |
-| **Black-Box Behavioral Reconstruction** | You only have a live website URL, running UI, or compiled binary | [`tools/web-crawler/`](tools/web-crawler/) | Reconstructs behavioral workflows by discovering DOM interactive controls, form fields, and network call patterns without requiring source code. |
+| **Black-Box (Web)** | You only have a live website URL or raw DOM | [`tools/web-crawler/`](tools/web-crawler/) | Reconstructs behavioral workflows by discovering DOM interactive controls, form fields, and network call patterns without requiring source code. |
+| **Black-Box (Mobile)** | You only have a compiled APK or installed on-device app | [`tools/apk-analyzer/`](tools/apk-analyzer/) | Deconstructs manifest activities, launcher entrypoints, deep links, and multi-DEX string pools to synthesize mobile state machines. |
 
 ### Quick CLI Usage:
 
 ```bash
-# Black-Box Behavioral Reconstruction: Reconstruct expected graph from a live URL
+# Black-Box: Reconstruct expected graph from a live Web URL
 python tools/web-crawler/crawler.py https://example.com/checkout -o expected_graph.json
 
-# White-Box Extraction: Extract from existing codebase tests and specs
+# Black-Box: Reconstruct expected graph from an Android APK or on-device package
+python tools/apk-analyzer/analyzer.py path/to/app-debug.apk -o expected_graph.json
+# Or directly from a connected Android phone/emulator:
+python tools/apk-analyzer/analyzer.py com.example.app --device -o expected_graph.json
+
+# White-Box: Extract from existing codebase tests and specs
 python skills/web-graph-extractor/scripts/extract_web_context.py /path/to/web-repo -o web_context.md
+python skills/android-graph-extractor/scripts/extract_code_context.py /path/to/android-repo -o android_context.md
 ```
 
 ---
@@ -202,7 +210,7 @@ python skills/web-graph-extractor/scripts/extract_web_context.py /path/to/web-re
 - [x] **Phase 2:** Web E-Commerce Checkout interactive demo with network scenario simulator.
 - [x] **Phase 2:** Test-driven automated behavioral graph extraction for Android & Web (`skills/`).
 - [x] **Phase 2:** Black-Box Behavioral Reconstruction for Web (`tools/web-crawler/`).
-- [ ] **Phase 2.5:** Black-Box Behavioral Reconstruction for Mobile Apps (`tools/apk-analyzer/`).
+- [x] **Phase 2.5:** Black-Box Behavioral Reconstruction for Mobile Apps (`tools/apk-analyzer/`).
 - [ ] **Phase 3:** Open-source AI Diagnostic Agent CLI and Web service (feed `expected.json` + `actual.json` + user prompt ➔ structured diagnostic report).
 - [ ] **Phase 4:** On-device small language model (SLM) diagnostic agent (offline, privacy-preserving diagnosis).
 - [ ] **Phase 5:** Self-healing and automated recovery actions (cache busting, safe state reset, token refresh).

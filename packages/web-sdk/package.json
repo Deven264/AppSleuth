@@ -22,7 +22,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Deven264/AppSleuth.git",
+    "url": "https://github.com/Deven264/Argus-SystemSleuth.git",
     "directory": "packages/web-sdk"
   }
 }
