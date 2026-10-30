@@ -42,6 +42,8 @@ export interface ArgusConfig {
   autoTrackErrors?: boolean;
   showWidget?: boolean;
   widgetPosition?: 'bottom-right' | 'bottom-left';
+  expectedGraphUrl?: string;
+  diagnosticServerUrl?: string;
 }
 
 export type AppSleuthConfig = ArgusConfig;

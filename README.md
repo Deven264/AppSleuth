@@ -121,6 +121,7 @@ Argus/
 │   └── graph-3d.html           # 3D orbital perspective visualizer
 ├── tools/                      # Standalone Developer & Extraction Tools
 │   ├── apk-analyzer/           # Black-Box Behavioral Reconstruction (Android APK & On-Device)
+│   ├── diagnostic-engine/      # AI Divergence Analysis & Root-Cause Diagnostic CLI/Server
 │   └── web-crawler/            # Black-Box Behavioral Reconstruction (Live Web URL Crawler)
 ├── skills/                     # AI Skills & Extractor Tooling
 │   ├── android-graph-extractor/ # Test-driven extractor for Android test suites
@@ -185,15 +186,22 @@ Argus supports both operational paradigms depending on what assets you have acce
 ### Quick CLI Usage:
 
 ```bash
-# Black-Box: Reconstruct expected graph from a live Web URL
+# 1. Run Automated AI Diagnosis (Expected Contract + Runtime Trace + User Complaint)
+python tools/diagnostic-engine/diagnose.py \
+  -e spec/expected_graph.json \
+  -a spec/sample_execution_graph.json \
+  -q "I clicked send email with a PDF, but it never confirmed" \
+  -o diagnosis_report.md
+
+# 2. Black-Box: Reconstruct expected graph from a live Web URL
 python tools/web-crawler/crawler.py https://example.com/checkout -o expected_graph.json
 
-# Black-Box: Reconstruct expected graph from an Android APK or on-device package
+# 3. Black-Box: Reconstruct expected graph from an Android APK or on-device package
 python tools/apk-analyzer/analyzer.py path/to/app-debug.apk -o expected_graph.json
 # Or directly from a connected Android phone/emulator:
 python tools/apk-analyzer/analyzer.py com.example.app --device -o expected_graph.json
 
-# White-Box: Extract from existing codebase tests and specs
+# 4. White-Box: Extract from existing codebase tests and specs
 python skills/web-graph-extractor/scripts/extract_web_context.py /path/to/web-repo -o web_context.md
 python skills/android-graph-extractor/scripts/extract_code_context.py /path/to/android-repo -o android_context.md
 ```
@@ -211,7 +219,7 @@ python skills/android-graph-extractor/scripts/extract_code_context.py /path/to/a
 - [x] **Phase 2:** Test-driven automated behavioral graph extraction for Android & Web (`skills/`).
 - [x] **Phase 2:** Black-Box Behavioral Reconstruction for Web (`tools/web-crawler/`).
 - [x] **Phase 2.5:** Black-Box Behavioral Reconstruction for Mobile Apps (`tools/apk-analyzer/`).
-- [ ] **Phase 3:** Open-source AI Diagnostic Agent CLI and Web service (feed `expected.json` + `actual.json` + user prompt ➔ structured diagnostic report).
+- [x] **Phase 3:** Open-source AI Diagnostic Agent CLI and Web service (feed `expected.json` + `actual.json` + user prompt ➔ structured diagnostic report).
 - [ ] **Phase 4:** On-device small language model (SLM) diagnostic agent (offline, privacy-preserving diagnosis).
 - [ ] **Phase 5:** Self-healing and automated recovery actions (cache busting, safe state reset, token refresh).
 
