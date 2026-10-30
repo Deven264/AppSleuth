@@ -315,12 +315,13 @@ body {
   border: 1px solid #334155;
   border-radius: 8px;
   position: relative;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 #graphCanvas {
   display: block;
-  width: 100%;
+  min-width: 480px;
   height: 340px;
   cursor: pointer;
 }
@@ -354,6 +355,8 @@ body {
 .dot-action { background: #f59e0b; }
 .dot-api { background: #06b6d4; }
 .dot-success { background: #10b981; }
+.dot-auth { background: #a855f7; }
+.dot-ratelimit { background: #fb923c; }
 .dot-timeout { background: #f59e0b; }
 .dot-fail { background: #ef4444; }
 

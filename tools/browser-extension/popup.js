@@ -1,6 +1,6 @@
 /**
  * Argus: SystemSleuth — Browser Extension Popup Controller
- * Hybrid Behavioral Graph Generation & Interactive Canvas Visualizer
+ * Full-Stack Systems SRE Architecture Engine & Interactive Canvas Visualizer
  */
 
 // Application State
@@ -73,7 +73,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Save API key handler
   saveKeyBtn.addEventListener('click', () => {
     const key = apiKeyInput.value.trim();
-    const mode = synthesisModeSelect ? synthesisModeSelect.value : 'single';
+    const mode = synthesisModeSelect ? synthesisModeSelect.value : 'deep';
     if (chrome.storage && chrome.storage.local) {
       chrome.storage.local.set({ geminiApiKey: key, synthesisMode: mode }, () => {
         saveKeyBtn.innerText = '✓ Saved!';
@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 function updateEngineBadge(hasKey) {
   if (hasKey) {
-    modelBadgeEl.innerText = 'AI Hybrid Engine (Gemini)';
+    modelBadgeEl.innerText = 'AI Systems Engine (Gemini)';
     modelBadgeEl.style.color = '#38bdf8';
     modelBadgeEl.style.borderColor = 'rgba(56, 189, 248, 0.4)';
     modelBadgeEl.style.background = 'rgba(56, 189, 248, 0.15)';
@@ -188,7 +188,6 @@ async function inspectActiveTab() {
     }
   } catch (err) {
     console.warn('Could not inject content script:', err);
-    // Fallback evidence from tab info
     if (activeTabInfo) {
       extractedEvidence = {
         url: activeTabInfo.url,
@@ -214,7 +213,7 @@ function updatePageCardWithEvidence(evidence) {
 }
 
 // -------------------------------------------------------------
-// 3. Graph Generation (Hybrid: AI or Heuristic)
+// 3. Graph Generation Controller
 // -------------------------------------------------------------
 async function onGenerateClicked() {
   if (!extractedEvidence) {
@@ -224,11 +223,11 @@ async function onGenerateClicked() {
   // Set loading UI
   generateBtn.disabled = true;
   genSpinner.style.display = 'inline-block';
-  genBtnText.innerText = 'Synthesizing Behavioral Contract...';
+  genBtnText.innerText = 'Deconstructing Full-Stack Architecture...';
   hideApiNotice();
 
   const apiKey = apiKeyInput.value.trim();
-  const mode = synthesisModeSelect ? synthesisModeSelect.value : 'single';
+  const mode = synthesisModeSelect ? synthesisModeSelect.value : 'deep';
 
   try {
     let graph = null;
@@ -237,23 +236,23 @@ async function onGenerateClicked() {
     if (apiKey) {
       try {
         genBtnText.innerText = mode === 'deep' 
-          ? 'Initiating Multi-Stage AI Synthesis...' 
-          : 'Consulting Gemini AI...';
+          ? 'Pass 1/2: Deconstructing Backend Microservices & Edge Cases...' 
+          : 'Consulting Gemini Systems Architect...';
         
         const synthesisResult = await synthesizeWithGemini(extractedEvidence, apiKey, mode);
         if (synthesisResult && synthesisResult.graph && synthesisResult.graph.workflows) {
           graph = synthesisResult.graph;
           modelUsed = synthesisResult.modelUsed;
-          showApiNotice(`Successfully synthesized via ${modelUsed} (${mode === 'deep' ? '2 requests' : '1 request'})`, 'success');
+          showApiNotice(`Synthesized via ${modelUsed} with full distributed edge-case coverage (${mode === 'deep' ? '2 Passes' : '1 Pass'})`, 'success');
         }
       } catch (llmErr) {
         console.warn('Gemini synthesis failed, falling back to heuristic synthesizer:', llmErr);
-        showApiNotice(`AI Notice: ${llmErr.message} — used built-in offline engine.`, 'error');
+        showApiNotice(`AI Notice: ${llmErr.message} — used built-in edge-case engine.`, 'error');
       }
     }
 
     if (!graph) {
-      genBtnText.innerText = 'Synthesizing with Heuristic Engine...';
+      genBtnText.innerText = 'Synthesizing with Offline Heuristic Engine...';
       graph = synthesizeHeuristicGraph(extractedEvidence);
     }
 
@@ -300,7 +299,7 @@ async function onGenerateClicked() {
 }
 
 // -------------------------------------------------------------
-// 4. Dynamic Model Discovery & Multi-Stage Gemini Synthesis
+// 4. Dynamic Model Discovery & Full-Stack SRE Gemini Synthesis
 // -------------------------------------------------------------
 async function discoverActiveModel(apiKey) {
   try {
@@ -313,7 +312,6 @@ async function discoverActiveModel(apiKey) {
           m.supportedGenerationMethods.includes('generateContent')
         );
 
-        // Find best flash model available on user's API key
         const preferred = supported.find(m => /2\.5-flash/i.test(m.name))
           || supported.find(m => /2\.0-flash/i.test(m.name))
           || supported.find(m => /1\.5-flash-latest/i.test(m.name))
@@ -347,7 +345,7 @@ async function callGeminiGenerate(modelName, prompt, apiKey) {
       }],
       generationConfig: {
         responseMimeType: 'application/json',
-        temperature: 0.2
+        temperature: 0.15
       }
     })
   });
@@ -372,8 +370,7 @@ async function callGeminiGenerate(modelName, prompt, apiKey) {
   return JSON.parse(rawText);
 }
 
-async function synthesizeWithGemini(evidence, apiKey, mode = 'single') {
-  // Discover active model on this API key or build candidate chain
+async function synthesizeWithGemini(evidence, apiKey, mode = 'deep') {
   const discovered = await discoverActiveModel(apiKey);
   const modelsToTry = discovered 
     ? [discovered, ...CANDIDATE_FLASH_MODELS.filter(m => m !== discovered)]
@@ -385,26 +382,92 @@ async function synthesizeWithGemini(evidence, apiKey, mode = 'single') {
 
   if (mode === 'deep') {
     // -------------------------------------------------------------
-    // MULTI-STAGE REASONING (2 Requests)
+    // MULTI-STAGE SRE SYNTHESIS (2 Passes)
     // -------------------------------------------------------------
-    // Request 1: Identify semantic user workflows and primary intent
-    genBtnText.innerText = 'Pass 1/2: Discovering User Workflows...';
-    const stage1Prompt = `You are Argus: SystemSleuth's AI Behavioral Architect.
-Analyze the following webpage evidence and identify the primary user workflow:
+    // Pass 1: Distributed Architecture & Edge-Case Decomposition
+    genBtnText.innerText = 'Pass 1/2: Deconstructing Backend Microservices & Edge Cases...';
+    const stage1Prompt = `You are Argus: SystemSleuth's Principal Distributed Systems SRE and Behavioral Architect.
+Argus performs automated behavioral self-diagnosis by modeling web applications as formal state machines with deep failure-mode coverage.
+
+Your task is to analyze the webpage evidence and deconstruct the real-world distributed system behind the user's primary action on this page.
+
+Webpage Evidence:
 URL: ${evidence.url}
 Title: ${evidence.title}
 Headings: ${JSON.stringify(evidence.headings || [])}
 Buttons: ${JSON.stringify(evidence.buttons || [])}
 Forms: ${JSON.stringify(evidence.forms || [])}
-Discovered Endpoints: ${JSON.stringify(evidence.scriptEndpoints || [])}
+Discovered Script Endpoints: ${JSON.stringify(evidence.scriptEndpoints || [])}
 
-Return JSON with structure:
+CRITICAL RULES:
+1. DO NOT generate toy templates with generic home-page URLs (like "${evidence.url}").
+2. INFER REALISTIC PRODUCTION-GRADE BACKEND ENDPOINTS matching the domain:
+   - If GitHub Copilot / Chat: use endpoints like '/api/v3/user/copilot/entitlement' and '/github-copilot/v1/chat/completions'.
+   - If E-Commerce: use '/api/v1/cart/validate' and '/api/v1/payments/charge'.
+   - If Auth / Profile: use '/api/auth/session/verify' and '/api/user/profile/update'.
+3. Deconstruct the interaction into a multi-step pipeline:
+   - Step 1 (Pre-flight / Auth / Entitlement): Checks token validity, permissions, license status, or feature flags.
+   - Step 2 (Primary Transaction / Streaming RPC): Dispatches the core operation.
+4. Define the CRITICAL PRODUCTION EDGE CASES for this feature:
+   - Auth/Permission: 401 Unauthorized (session expired) or 403 Forbidden (seat revoked / org policy).
+   - Resource Quotas: 429 Too Many Requests (rate limit or token quota exceeded).
+   - Validation: 422 Unprocessable Entity (invalid input or constraint violation).
+   - Infrastructure: 504 Gateway Timeout (upstream model/database latency > 8000ms) or 502 Bad Gateway.
+
+Return strictly JSON:
 {
-  "workflowName": "string",
-  "workflowDescription": "string",
-  "primaryAction": "string",
-  "primaryEndpoint": "string",
-  "keyIntents": ["string"]
+  "featureId": "string (lowercase_underscore)",
+  "featureName": "string",
+  "featureDescription": "string",
+  "primaryUserAction": "string (e.g. Click:OpenCopilotButton, Click:PayNow, Click:RunQuery)",
+  "apiPipeline": [
+    {
+      "step": 1,
+      "name": "AuthAndEntitlementCheck",
+      "method": "GET",
+      "endpoint": "string",
+      "description": "string",
+      "timeoutMs": 3000
+    },
+    {
+      "step": 2,
+      "name": "PrimaryExecution",
+      "method": "POST",
+      "endpoint": "string",
+      "description": "string",
+      "timeoutMs": 10000
+    }
+  ],
+  "edgeCases": [
+    {
+      "id": "auth_failure",
+      "code": 403,
+      "label": "ApiResult:403:Forbidden",
+      "cause": "Subscription lapsed, seat revoked, or organization policy blocked access",
+      "stateResult": "StateChange:ShowUpgradeOrReauthModal"
+    },
+    {
+      "id": "rate_limit",
+      "code": 429,
+      "label": "ApiResult:429:TooManyRequests",
+      "cause": "Rate limit quota depleted or burst traffic threshold reached",
+      "stateResult": "StateChange:ShowRateLimitCooldownBanner"
+    },
+    {
+      "id": "timeout",
+      "code": 504,
+      "label": "ApiResult:504:GatewayTimeout",
+      "cause": "Upstream microservice or LLM inference gateway latency spike > 10,000ms",
+      "stateResult": "StateChange:ShowRetryPromptButton"
+    },
+    {
+      "id": "validation_error",
+      "code": 422,
+      "label": "ApiResult:422:UnprocessableEntity",
+      "cause": "Malformed input, missing required parameters, or schema validation error",
+      "stateResult": "StateChange:HighlightInputError"
+    }
+  ]
 }`;
 
     let stage1Result = null;
@@ -422,21 +485,42 @@ Return JSON with structure:
       throw lastError || new Error('Failed to complete Pass 1');
     }
 
-    // Request 2: Synthesize failure modes, timeouts, CORS errors, and state machine
-    genBtnText.innerText = `Pass 2/2 (${successfulModel}): Synthesizing Failure Modes & SLA Boundaries...`;
-    const stage2Prompt = `You are Argus: SystemSleuth's AI Behavioral Architect.
-We have identified the core workflow architecture:
+    // Pass 2: Synthesize the Formal Multi-Branch State Machine Graph
+    genBtnText.innerText = `Pass 2/2 (${successfulModel}): Synthesizing Full State Machine & Edge-Case Matrix...`;
+    const stage2Prompt = `You are Argus: SystemSleuth's Principal Distributed Systems Architect.
+Synthesize a formal Argus Expected Behavioral Graph (expected_graph.json) that directly implements this distributed systems blueprint:
+
+Blueprint:
 ${JSON.stringify(stage1Result, null, 2)}
 
-Webpage Evidence:
+Webpage Context:
 URL: ${evidence.url}
 Title: ${evidence.title}
-Buttons: ${JSON.stringify(evidence.buttons || [])}
-Forms: ${JSON.stringify(evidence.forms || [])}
-Discovered Script Endpoints: ${JSON.stringify(evidence.scriptEndpoints || [])}
 
-Synthesize a complete, production-ready Argus Expected Behavioral Graph in JSON.
-Strictly adhere to this Argus JSON schema:
+STRICT SPECIFICATION RULES:
+1. Model the complete multi-tier flow from entry to terminal states:
+   - "n_session_start" ➔ "n_page_view" ➔ user action ➔ pre-flight API call ➔ primary execution API call.
+2. Every API step in the pipeline must be an API_CALL node with its realistic endpoint.
+3. Every API call must have explicit branches for:
+   - Happy Path: API_RESULT with HTTP 200/201 (SUCCESS outcome) leading to next stage or terminal confirmed.
+   - Distinct Failure Modes: For each edge case in the blueprint (401/403, 429, 504/Timeout, 422/Error), create a dedicated API_RESULT node with:
+     * "expectedOutcome": "FAILURE" or "TIMEOUT"
+     * "isKnownFailureMode": true
+     * "knownCauses": [2-3 detailed root cause bullets]
+   - Each failure API_RESULT must lead to an appropriate terminal STATE_CHANGE node (e.g. StateChange:ReauthRequired, StateChange:RateLimitBanner, StateChange:RetryPrompt).
+4. Edges:
+   - Must connect all nodes and include the "path" annotation:
+     * "happy_path"
+     * "auth_failure_path"
+     * "rate_limit_path"
+     * "timeout_failure_path"
+     * "validation_error_path"
+5. Paths Object:
+   - Must contain:
+     * "happy_path": { "description": "...", "sequence": [...] }
+     * Each failure path with "divergesFromHappyPathAt" pointing to the API_CALL where divergence occurs.
+
+Return strictly valid JSON matching this schema:
 {
   "schemaVersion": "1.0",
   "appVersion": "1.0.0",
@@ -444,57 +528,40 @@ Strictly adhere to this Argus JSON schema:
   "description": "Expected behavioral contract synthesized for ${evidence.title}",
   "workflows": [
     {
-      "id": "wf_${evidence.title.replace(/[^a-zA-Z0-9]/g, '').toLowerCase().slice(0, 16) || 'web'}_workflow",
-      "name": "${stage1Result.workflowName || 'WebWorkflow'}",
-      "description": "${stage1Result.workflowDescription || 'Primary user interaction flow'}",
+      "id": "wf_${stage1Result.featureId || 'feature'}",
+      "name": "${stage1Result.featureName || 'FeatureWorkflow'}",
+      "description": "${stage1Result.featureDescription || 'Primary workflow'}",
       "entryNode": "n_session_start",
-      "terminalNodes": ["n_terminal_success", "n_terminal_timeout", "n_terminal_failure"],
+      "terminalNodes": ["n_terminal_success", "n_terminal_auth_fail", "n_terminal_rate_limit", "n_terminal_timeout", "n_terminal_error"],
       "nodes": [
-        { "id": "n_session_start", "type": "SESSION_START", "label": "SessionStart", "expectedOutcome": "SUCCESS", "description": "User launched web application." },
-        { "id": "n_page_view", "type": "PAGE_VIEW", "label": "PageView:${new URL(evidence.url || 'https://example.com').pathname}", "expectedOutcome": "SUCCESS", "description": "Page loaded and interactive." },
-        { "id": "n_user_action", "type": "USER_ACTION", "label": "Click:${stage1Result.primaryAction || 'Submit'}", "expectedOutcome": "SUCCESS", "description": "User clicked primary action trigger." },
-        { "id": "n_state_processing", "type": "STATE_CHANGE", "label": "StateChange:Processing", "expectedOutcome": "PENDING", "description": "UI entered loading state." },
-        { "id": "n_api_call", "type": "API_CALL", "label": "ApiCall:${stage1Result.primaryEndpoint || '/api/v1/action'}", "expectedOutcome": "PENDING", "description": "Client dispatched network request.", "constraints": { "timeoutThresholdMs": 8000 } },
-        { "id": "n_api_result_success", "type": "API_RESULT", "label": "ApiResult:200:${stage1Result.primaryEndpoint || '/api/v1/action'}", "expectedOutcome": "SUCCESS", "description": "Server responded with HTTP 200 OK." },
-        { "id": "n_terminal_success", "type": "STATE_CHANGE", "label": "StateChange:Completed", "expectedOutcome": "SUCCESS", "description": "Workflow completed successfully.", "isTerminal": true },
-        { "id": "n_api_result_timeout", "type": "API_RESULT", "label": "ApiResult:TIMEOUT:${stage1Result.primaryEndpoint || '/api/v1/action'}", "expectedOutcome": "TIMEOUT", "description": "Request exceeded timeout threshold.", "isKnownFailureMode": true, "knownCauses": ["Backend latency spike", "Network packet drop"] },
-        { "id": "n_terminal_timeout", "type": "STATE_CHANGE", "label": "StateChange:TimeoutNotice", "expectedOutcome": "TIMEOUT", "description": "Timeout retry dialog shown.", "isTerminal": true, "isKnownFailureMode": true },
-        { "id": "n_api_result_failure", "type": "API_RESULT", "label": "ApiResult:FAILED:${stage1Result.primaryEndpoint || '/api/v1/action'}", "expectedOutcome": "FAILURE", "description": "Network request failed or CORS rejected.", "isKnownFailureMode": true, "knownCauses": ["CORS origin header missing", "HTTP 500 error"] },
-        { "id": "n_terminal_failure", "type": "STATE_CHANGE", "label": "StateChange:ErrorNotice", "expectedOutcome": "FAILURE", "description": "Error banner displayed.", "isTerminal": true, "isKnownFailureMode": true }
+        { "id": "n_session_start", "type": "SESSION_START", "label": "SessionStart", "expectedOutcome": "SUCCESS", "description": "User initiated session." },
+        { "id": "n_page_view", "type": "PAGE_VIEW", "label": "PageView:${new URL(evidence.url || 'https://example.com').pathname}", "expectedOutcome": "SUCCESS", "description": "Page loaded." },
+        ...
       ],
       "edges": [
-        { "from": "n_session_start", "to": "n_page_view", "label": "navigated_to", "path": "all" },
-        { "from": "n_page_view", "to": "n_user_action", "label": "user_triggered", "path": "all" },
-        { "from": "n_user_action", "to": "n_state_processing", "label": "state_changed", "path": "all" },
-        { "from": "n_state_processing", "to": "n_api_call", "label": "api_initiated", "path": "all" },
-        { "from": "n_api_call", "to": "n_api_result_success", "label": "api_responded", "path": "happy_path" },
-        { "from": "n_api_result_success", "to": "n_terminal_success", "label": "state_changed", "path": "happy_path" },
-        { "from": "n_api_call", "to": "n_api_result_timeout", "label": "api_responded", "path": "timeout_failure_path" },
-        { "from": "n_api_result_timeout", "to": "n_terminal_timeout", "label": "state_changed", "path": "timeout_failure_path" },
-        { "from": "n_api_call", "to": "n_api_result_failure", "label": "api_responded", "path": "network_failure_path" },
-        { "from": "n_api_result_failure", "to": "n_terminal_failure", "label": "state_changed", "path": "network_failure_path" }
+        ...
       ],
       "paths": {
-        "happy_path": { "description": "Successful execution", "sequence": ["n_session_start", "n_page_view", "n_user_action", "n_state_processing", "n_api_call", "n_api_result_success", "n_terminal_success"] },
-        "timeout_failure_path": { "description": "Network timeout failure", "divergesFromHappyPathAt": "n_api_call", "sequence": ["n_session_start", "n_page_view", "n_user_action", "n_state_processing", "n_api_call", "n_api_result_timeout", "n_terminal_timeout"] },
-        "network_failure_path": { "description": "Network error or CORS rejection", "divergesFromHappyPathAt": "n_api_call", "sequence": ["n_session_start", "n_page_view", "n_user_action", "n_state_processing", "n_api_call", "n_api_result_failure", "n_terminal_failure"] }
+        "happy_path": { "description": "Successful execution", "sequence": [...] },
+        "auth_failure_path": { "description": "Auth or seat entitlement rejected", "divergesFromHappyPathAt": "...", "sequence": [...] },
+        "rate_limit_path": { "description": "Rate limit quota exhausted", "divergesFromHappyPathAt": "...", "sequence": [...] },
+        "timeout_failure_path": { "description": "Gateway or upstream inference timeout", "divergesFromHappyPathAt": "...", "sequence": [...] }
       }
     }
   ]
-}
-Return strictly JSON.`;
+}`;
 
     finalGraph = await callGeminiGenerate(successfulModel, stage2Prompt, apiKey);
 
   } else {
     // -------------------------------------------------------------
-    // STANDARD SINGLE-PASS SYNTHESIS (1 Request)
+    // STANDARD SINGLE-PASS SRE SYNTHESIS (1 Request)
     // -------------------------------------------------------------
-    genBtnText.innerText = 'Consulting Gemini AI...';
-    const singlePrompt = `You are Argus: SystemSleuth's AI Behavioral Architect.
-Argus is an automated behavioral diagnosis system that uses formal behavioral graphs (expected_graph.json) to detect and diagnose regressions, latency spikes, CORS/network failures, and UI state divergences.
+    genBtnText.innerText = 'Consulting Gemini Systems Architect...';
+    const singlePrompt = `You are Argus: SystemSleuth's Principal Distributed Systems SRE and Behavioral Architect.
+Argus is an automated behavioral diagnosis system that uses formal state machine graphs (expected_graph.json) to detect and diagnose regressions, latency spikes, CORS/network failures, and UI state divergences.
 
-Analyze the following harvested webpage structural evidence and synthesize a complete, rigorous Argus Expected Behavioral Graph in JSON.
+Analyze the following webpage evidence and synthesize a realistic, production-grade Expected Behavioral Graph.
 
 Webpage Evidence:
 URL: ${evidence.url}
@@ -504,9 +571,20 @@ Buttons: ${JSON.stringify(evidence.buttons || [])}
 Forms: ${JSON.stringify(evidence.forms || [])}
 Discovered Script Endpoints: ${JSON.stringify(evidence.scriptEndpoints || [])}
 
-Requirements:
-1. Return strictly valid JSON with no markdown formatting.
-2. The JSON MUST follow the Argus schema:
+CRITICAL RULES:
+1. DO NOT generate toy templates with generic root URLs like "${evidence.url}".
+2. INFER REALISTIC PRODUCTION-GRADE BACKEND ENDPOINTS (e.g., if on GitHub: /api/v3/user/copilot/entitlement, /github-copilot/v1/chat/completions; if on ecommerce: /api/v1/cart/validate, /api/v1/payments/charge).
+3. Include at least 3 distinct REAL-WORLD PRODUCTION EDGE CASES:
+   - 401/403: Auth / Seat / License entitlement rejected (isKnownFailureMode: true)
+   - 429: Rate limit or monthly quota exhausted (isKnownFailureMode: true)
+   - 504 / Timeout: Gateway timeout / high latency threshold (isKnownFailureMode: true)
+4. Model distinct failure paths in the "paths" object:
+   - "happy_path"
+   - "auth_failure_path"
+   - "rate_limit_path"
+   - "timeout_failure_path"
+
+Return strictly valid JSON matching the Argus 1.0 schema:
 {
   "schemaVersion": "1.0",
   "appVersion": "1.0.0",
@@ -518,32 +596,18 @@ Requirements:
       "name": "PrimaryWorkflow",
       "description": "Detailed workflow description",
       "entryNode": "n_session_start",
-      "terminalNodes": ["n_terminal_success", "n_terminal_timeout", "n_terminal_failure"],
-      "nodes": [
-        { "id": "n_session_start", "type": "SESSION_START", "label": "SessionStart", "expectedOutcome": "SUCCESS", "description": "..." },
-        { "id": "n_page_view", "type": "PAGE_VIEW", "label": "PageView:/...", "expectedOutcome": "SUCCESS", "description": "..." },
-        { "id": "n_user_action", "type": "USER_ACTION", "label": "Click:...", "expectedOutcome": "SUCCESS", "description": "..." },
-        { "id": "n_state_processing", "type": "STATE_CHANGE", "label": "StateChange:Processing", "expectedOutcome": "PENDING", "description": "..." },
-        { "id": "n_api_call", "type": "API_CALL", "label": "ApiCall:...", "expectedOutcome": "PENDING", "description": "...", "constraints": { "timeoutThresholdMs": 8000 } },
-        { "id": "n_api_result_success", "type": "API_RESULT", "label": "ApiResult:200:...", "expectedOutcome": "SUCCESS", "description": "..." },
-        { "id": "n_terminal_success", "type": "STATE_CHANGE", "label": "StateChange:Success", "expectedOutcome": "SUCCESS", "description": "...", "isTerminal": true },
-        { "id": "n_api_result_timeout", "type": "API_RESULT", "label": "ApiResult:TIMEOUT:...", "expectedOutcome": "TIMEOUT", "description": "...", "isKnownFailureMode": true, "knownCauses": ["..."] },
-        { "id": "n_terminal_timeout", "type": "STATE_CHANGE", "label": "StateChange:TimeoutError", "expectedOutcome": "TIMEOUT", "description": "...", "isTerminal": true, "isKnownFailureMode": true },
-        { "id": "n_api_result_failure", "type": "API_RESULT", "label": "ApiResult:FAILED:...", "expectedOutcome": "FAILURE", "description": "...", "isKnownFailureMode": true, "knownCauses": ["..."] },
-        { "id": "n_terminal_failure", "type": "STATE_CHANGE", "label": "StateChange:ErrorAlert", "expectedOutcome": "FAILURE", "description": "...", "isTerminal": true, "isKnownFailureMode": true }
-      ],
-      "edges": [
-        { "from": "...", "to": "...", "label": "...", "path": "all" | "happy_path" | "timeout_failure_path" | "network_failure_path" }
-      ],
+      "terminalNodes": ["n_terminal_success", "n_terminal_auth_fail", "n_terminal_rate_limit", "n_terminal_timeout"],
+      "nodes": [...],
+      "edges": [...],
       "paths": {
         "happy_path": { "description": "...", "sequence": [...] },
-        "timeout_failure_path": { "description": "...", "divergesFromHappyPathAt": "n_api_call", "sequence": [...] },
-        "network_failure_path": { "description": "...", "divergesFromHappyPathAt": "n_api_call", "sequence": [...] }
+        "auth_failure_path": { "description": "...", "divergesFromHappyPathAt": "...", "sequence": [...] },
+        "rate_limit_path": { "description": "...", "divergesFromHappyPathAt": "...", "sequence": [...] },
+        "timeout_failure_path": { "description": "...", "divergesFromHappyPathAt": "...", "sequence": [...] }
       }
     }
   ]
-}
-Synthesize accurate node IDs, meaningful user action labels from the buttons, and relevant API endpoints.`;
+}`;
 
     for (const model of modelsToTry) {
       try {
@@ -564,36 +628,37 @@ Synthesize accurate node IDs, meaningful user action labels from the buttons, an
 }
 
 // -------------------------------------------------------------
-// 5. Built-in Heuristic Synthesizer (100% Offline)
+// 5. Built-in Offline Heuristic Synthesizer (Hardened Edge Cases)
 // -------------------------------------------------------------
 function synthesizeHeuristicGraph(evidence) {
   const url = new URL(evidence.url || 'https://example.com');
   const pathname = url.pathname === '/' ? '/home' : url.pathname;
   const cleanTitle = (evidence.title || 'WebApp').replace(/[^a-zA-Z0-9]/g, '');
 
-  // Extract most representative action
   let primaryAction = 'Submit';
   if (evidence.buttons && evidence.buttons.length > 0) {
     const candidate = evidence.buttons.find(b =>
-      /pay|checkout|order|submit|login|sign|search|send|save|confirm/i.test(b.label)
+      /copilot|pay|checkout|order|submit|login|sign|search|send|save|confirm/i.test(b.label)
     );
     primaryAction = candidate ? candidate.label : evidence.buttons[0].label;
   }
   primaryAction = primaryAction.slice(0, 24);
 
-  // Extract or derive representative API endpoint
-  let primaryEndpoint = '/api/v1/action';
-  if (evidence.scriptEndpoints && evidence.scriptEndpoints.length > 0) {
-    primaryEndpoint = evidence.scriptEndpoints[0];
-  } else if (evidence.forms && evidence.forms.length > 0 && evidence.forms[0].action) {
-    try {
-      const actUrl = new URL(evidence.forms[0].action, url.origin);
-      primaryEndpoint = actUrl.pathname;
-    } catch {
-      primaryEndpoint = evidence.forms[0].action;
-    }
+  // Derive realistic endpoints
+  let authEndpoint = `/api/v1/auth/entitlement`;
+  let execEndpoint = `/api/v1/action/execute`;
+
+  if (evidence.scriptEndpoints && evidence.scriptEndpoints.length >= 2) {
+    authEndpoint = evidence.scriptEndpoints[0];
+    execEndpoint = evidence.scriptEndpoints[1];
+  } else if (evidence.scriptEndpoints && evidence.scriptEndpoints.length === 1) {
+    execEndpoint = evidence.scriptEndpoints[0];
+  } else if (url.hostname.includes('github.com')) {
+    authEndpoint = '/api/v3/user/copilot/entitlement';
+    execEndpoint = '/github-copilot/v1/chat/completions';
   } else if (pathname !== '/home') {
-    primaryEndpoint = `/api${pathname}`;
+    authEndpoint = `/api${pathname}/status`;
+    execEndpoint = `/api${pathname}/submit`;
   }
 
   const workflowId = `wf_${cleanTitle.toLowerCase().slice(0, 16) || 'web'}_workflow`;
@@ -603,109 +668,166 @@ function synthesizeHeuristicGraph(evidence) {
     schemaVersion: '1.0',
     appVersion: '1.0.0',
     platform: 'web',
-    description: `Expected behavioral contract synthesized for ${evidence.title || url.hostname}.`,
+    description: `Full-stack behavioral contract synthesized for ${evidence.title || url.hostname}.`,
     workflows: [
       {
         id: workflowId,
         name: workflowName,
-        description: `User opens ${pathname}, triggers ${primaryAction}, and server handles request at ${primaryEndpoint}.`,
+        description: `User triggers ${primaryAction}. Client verifies entitlement at ${authEndpoint} and executes at ${execEndpoint}.`,
         entryNode: 'n_session_start',
-        terminalNodes: ['n_terminal_success', 'n_terminal_timeout', 'n_terminal_cors'],
+        terminalNodes: ['n_terminal_success', 'n_terminal_auth_fail', 'n_terminal_rate_limit', 'n_terminal_timeout', 'n_terminal_cors'],
         nodes: [
           {
             id: 'n_session_start',
             type: 'SESSION_START',
             label: 'SessionStart',
             expectedOutcome: 'SUCCESS',
-            description: `User loaded ${url.origin}. Argus client telemetry initialized.`
+            description: `Session initialized on ${url.origin}. Argus telemetry active.`
           },
           {
             id: 'n_page_view',
             type: 'PAGE_VIEW',
             label: `PageView:${pathname}`,
             expectedOutcome: 'SUCCESS',
-            description: `Page ${evidence.title || pathname} rendered. Interactive elements ready.`
+            description: `Page ${evidence.title || pathname} rendered.`
           },
           {
             id: 'n_user_action',
             type: 'USER_ACTION',
             label: `Click:${primaryAction}`,
             expectedOutcome: 'SUCCESS',
-            description: `User clicked on primary interaction element '${primaryAction}'.`
+            description: `User triggered primary action '${primaryAction}'.`
+          },
+          {
+            id: 'n_api_auth_check',
+            type: 'API_CALL',
+            label: `ApiCall:${authEndpoint}`,
+            expectedOutcome: 'PENDING',
+            description: `Pre-flight entitlement check to ${authEndpoint}.`,
+            constraints: { timeoutThresholdMs: 3000 }
+          },
+          {
+            id: 'n_api_auth_success',
+            type: 'API_RESULT',
+            label: `ApiResult:200:${authEndpoint}`,
+            expectedOutcome: 'SUCCESS',
+            description: 'User entitlement & permissions confirmed.'
+          },
+          {
+            id: 'n_api_auth_403',
+            type: 'API_RESULT',
+            label: `ApiResult:403:${authEndpoint}`,
+            expectedOutcome: 'FAILURE',
+            description: 'License expired, seat revoked, or organization SSO policy blocked access.',
+            isKnownFailureMode: true,
+            knownCauses: [
+              'License expired or user seat revoked',
+              'Organization SAML/SSO enforcement policy expired',
+              'Missing required RBAC permissions for target resource'
+            ]
+          },
+          {
+            id: 'n_terminal_auth_fail',
+            type: 'STATE_CHANGE',
+            label: 'StateChange:EntitlementRequired',
+            expectedOutcome: 'FAILURE',
+            description: 'UI rendered re-authorization or license upgrade dialog.',
+            isTerminal: true,
+            isKnownFailureMode: true
           },
           {
             id: 'n_state_processing',
             type: 'STATE_CHANGE',
             label: 'StateChange:Processing',
             expectedOutcome: 'PENDING',
-            description: 'UI enters loading state: interactive trigger disabled, activity spinner displayed.'
+            description: 'UI enters loading state for primary execution.'
           },
           {
-            id: 'n_api_call',
+            id: 'n_api_execute',
             type: 'API_CALL',
-            label: `ApiCall:${primaryEndpoint}`,
+            label: `ApiCall:${execEndpoint}`,
             expectedOutcome: 'PENDING',
-            description: `Client dispatches network request to ${primaryEndpoint}.`,
-            constraints: {
-              timeoutThresholdMs: 8000
-            }
+            description: `Primary dispatch to ${execEndpoint}.`,
+            constraints: { timeoutThresholdMs: 8000 }
           },
           {
-            id: 'n_api_result_success',
+            id: 'n_api_exec_200',
             type: 'API_RESULT',
-            label: `ApiResult:200:${primaryEndpoint}`,
+            label: `ApiResult:200:${execEndpoint}`,
             expectedOutcome: 'SUCCESS',
-            description: `Server completed processing and returned HTTP 200 OK.`
+            description: 'Server processed request successfully.'
           },
           {
             id: 'n_terminal_success',
             type: 'STATE_CHANGE',
-            label: 'StateChange:SuccessConfirmed',
+            label: 'StateChange:Completed',
             expectedOutcome: 'SUCCESS',
-            description: 'Transaction confirmed. Success feedback rendered to user.',
+            description: 'Operation completed successfully.',
             isTerminal: true
           },
           {
-            id: 'n_api_result_timeout',
+            id: 'n_api_exec_429',
             type: 'API_RESULT',
-            label: `ApiResult:TIMEOUT:${primaryEndpoint}`,
-            expectedOutcome: 'TIMEOUT',
-            description: `Network request exceeded 8,000ms threshold without a response.`,
+            label: `ApiResult:429:${execEndpoint}`,
+            expectedOutcome: 'FAILURE',
+            description: 'API rate limit or monthly token quota exhausted.',
             isKnownFailureMode: true,
             knownCauses: [
-              'Backend service cold start or high latency',
-              'Client network degradation or dropped packet sequence',
-              'Database query lock on backend resource'
+              'Hourly or monthly API quota depleted',
+              'Burst request rate exceeded threshold',
+              'Upstream provider tier restriction triggered'
+            ]
+          },
+          {
+            id: 'n_terminal_rate_limit',
+            type: 'STATE_CHANGE',
+            label: 'StateChange:RateLimitBanner',
+            expectedOutcome: 'FAILURE',
+            description: 'UI displayed rate limit cooldown banner with retry timer.',
+            isTerminal: true,
+            isKnownFailureMode: true
+          },
+          {
+            id: 'n_api_exec_timeout',
+            type: 'API_RESULT',
+            label: `ApiResult:504:${execEndpoint}`,
+            expectedOutcome: 'TIMEOUT',
+            description: 'Gateway timeout: upstream microservice or inference engine exceeded 8,000ms SLA.',
+            isKnownFailureMode: true,
+            knownCauses: [
+              'Upstream microservice cold start or queue saturation',
+              'LLM inference model gateway high latency spike',
+              'Database query lock on backend shard'
             ]
           },
           {
             id: 'n_terminal_timeout',
             type: 'STATE_CHANGE',
-            label: 'StateChange:TimeoutAlert',
+            label: 'StateChange:TimeoutNotice',
             expectedOutcome: 'TIMEOUT',
-            description: 'UI rendered timeout alert banner. Primary trigger re-enabled for user retry.',
+            description: 'UI presented retry dialog with exponential backoff option.',
             isTerminal: true,
             isKnownFailureMode: true
           },
           {
-            id: 'n_api_result_cors',
+            id: 'n_api_exec_cors',
             type: 'API_RESULT',
-            label: `ApiResult:FAILED:${primaryEndpoint}`,
+            label: `ApiResult:FAILED:${execEndpoint}`,
             expectedOutcome: 'FAILURE',
-            description: 'Network request aborted due to CORS preflight failure or 502/500 Bad Gateway.',
+            description: 'Network request aborted due to CORS preflight failure or 500 error.',
             isKnownFailureMode: true,
             knownCauses: [
               'Missing Access-Control-Allow-Origin header in response',
-              'Content-Security-Policy (CSP) blocking external origin',
-              'Adblocker or privacy filter intercepting request'
+              'Network disconnect or client offline',
+              '500 Internal Server Error in backend handler'
             ]
           },
           {
             id: 'n_terminal_cors',
             type: 'STATE_CHANGE',
-            label: 'StateChange:FailureDialog',
+            label: 'StateChange:FailureAlert',
             expectedOutcome: 'FAILURE',
-            description: 'UI presented error dialog explaining the network failure.',
+            description: 'UI displayed error notification banner.',
             isTerminal: true,
             isKnownFailureMode: true
           }
@@ -713,51 +835,90 @@ function synthesizeHeuristicGraph(evidence) {
         edges: [
           { from: 'n_session_start', to: 'n_page_view', label: 'navigated_to', path: 'all' },
           { from: 'n_page_view', to: 'n_user_action', label: 'user_triggered', path: 'all' },
-          { from: 'n_user_action', to: 'n_state_processing', label: 'state_changed', path: 'all' },
-          { from: 'n_state_processing', to: 'n_api_call', label: 'api_initiated', path: 'all' },
-          { from: 'n_api_call', to: 'n_api_result_success', label: 'api_responded', path: 'happy_path' },
-          { from: 'n_api_result_success', to: 'n_terminal_success', label: 'state_changed', path: 'happy_path' },
-          { from: 'n_api_call', to: 'n_api_result_timeout', label: 'api_responded', path: 'timeout_failure_path' },
-          { from: 'n_api_result_timeout', to: 'n_terminal_timeout', label: 'state_changed', path: 'timeout_failure_path' },
-          { from: 'n_api_call', to: 'n_api_result_cors', label: 'api_responded', path: 'cors_error_path' },
-          { from: 'n_api_result_cors', to: 'n_terminal_cors', label: 'state_changed', path: 'cors_error_path' }
+          { from: 'n_user_action', to: 'n_api_auth_check', label: 'api_initiated', path: 'all' },
+          { from: 'n_api_auth_check', to: 'n_api_auth_success', label: 'api_responded', path: 'happy_path' },
+          { from: 'n_api_auth_check', to: 'n_api_auth_403', label: 'api_responded', path: 'auth_failure_path' },
+          { from: 'n_api_auth_403', to: 'n_terminal_auth_fail', label: 'state_changed', path: 'auth_failure_path' },
+          { from: 'n_api_auth_success', to: 'n_state_processing', label: 'state_changed', path: 'happy_path' },
+          { from: 'n_state_processing', to: 'n_api_execute', label: 'api_initiated', path: 'happy_path' },
+          { from: 'n_api_execute', to: 'n_api_exec_200', label: 'api_responded', path: 'happy_path' },
+          { from: 'n_api_exec_200', to: 'n_terminal_success', label: 'state_changed', path: 'happy_path' },
+          { from: 'n_api_execute', to: 'n_api_exec_429', label: 'api_responded', path: 'rate_limit_path' },
+          { from: 'n_api_exec_429', to: 'n_terminal_rate_limit', label: 'state_changed', path: 'rate_limit_path' },
+          { from: 'n_api_execute', to: 'n_api_exec_timeout', label: 'api_responded', path: 'timeout_failure_path' },
+          { from: 'n_api_exec_timeout', to: 'n_terminal_timeout', label: 'state_changed', path: 'timeout_failure_path' },
+          { from: 'n_api_execute', to: 'n_api_exec_cors', label: 'api_responded', path: 'cors_error_path' },
+          { from: 'n_api_exec_cors', to: 'n_terminal_cors', label: 'state_changed', path: 'cors_error_path' }
         ],
         paths: {
           happy_path: {
-            description: 'User successfully completes primary workflow',
+            description: 'User successfully completes verified workflow',
             sequence: [
               'n_session_start',
               'n_page_view',
               'n_user_action',
+              'n_api_auth_check',
+              'n_api_auth_success',
               'n_state_processing',
-              'n_api_call',
-              'n_api_result_success',
+              'n_api_execute',
+              'n_api_exec_200',
               'n_terminal_success'
             ]
           },
-          timeout_failure_path: {
-            description: 'Request times out after 8,000ms threshold',
-            divergesFromHappyPathAt: 'n_api_call',
+          auth_failure_path: {
+            description: 'User license expired or seat revoked at entitlement check',
+            divergesFromHappyPathAt: 'n_api_auth_check',
             sequence: [
               'n_session_start',
               'n_page_view',
               'n_user_action',
+              'n_api_auth_check',
+              'n_api_auth_403',
+              'n_terminal_auth_fail'
+            ]
+          },
+          rate_limit_path: {
+            description: 'API rate limit or monthly token quota exhausted',
+            divergesFromHappyPathAt: 'n_api_execute',
+            sequence: [
+              'n_session_start',
+              'n_page_view',
+              'n_user_action',
+              'n_api_auth_check',
+              'n_api_auth_success',
               'n_state_processing',
-              'n_api_call',
-              'n_api_result_timeout',
+              'n_api_execute',
+              'n_api_exec_429',
+              'n_terminal_rate_limit'
+            ]
+          },
+          timeout_failure_path: {
+            description: 'Gateway timeout: upstream microservice exceeded 8,000ms SLA',
+            divergesFromHappyPathAt: 'n_api_execute',
+            sequence: [
+              'n_session_start',
+              'n_page_view',
+              'n_user_action',
+              'n_api_auth_check',
+              'n_api_auth_success',
+              'n_state_processing',
+              'n_api_execute',
+              'n_api_exec_timeout',
               'n_terminal_timeout'
             ]
           },
           cors_error_path: {
-            description: 'Request fails due to network drop or CORS preflight rejection',
-            divergesFromHappyPathAt: 'n_api_call',
+            description: 'Network failure or server error',
+            divergesFromHappyPathAt: 'n_api_execute',
             sequence: [
               'n_session_start',
               'n_page_view',
               'n_user_action',
+              'n_api_auth_check',
+              'n_api_auth_success',
               'n_state_processing',
-              'n_api_call',
-              'n_api_result_cors',
+              'n_api_execute',
+              'n_api_exec_cors',
               'n_terminal_cors'
             ]
           }
@@ -768,7 +929,7 @@ function synthesizeHeuristicGraph(evidence) {
 }
 
 // -------------------------------------------------------------
-// 6. Interactive Canvas Visualizer
+// 6. Dynamic Topological Canvas Layout Engine
 // -------------------------------------------------------------
 function layoutGraph(graph) {
   layoutNodes = [];
@@ -777,70 +938,126 @@ function layoutGraph(graph) {
   const wf = graph?.workflows?.[0];
   if (!wf || !wf.nodes) return;
 
-  const width = graphCanvas.width;
-  const height = graphCanvas.height;
-
-  // Identify happy path nodes
   const happySeq = wf.paths?.happy_path?.sequence || [];
 
-  // Determine branch classification
   const nodeMap = new Map();
   wf.nodes.forEach(n => nodeMap.set(n.id, n));
 
-  // Custom positioning based on Argus graph structure
-  // Main sequence: 5 stages left-to-right (x: 40 to 280)
-  // Branches: 3 rows (Happy=Top y:70, Timeout=Mid y:170, Fail=Bottom y:270)
-  const branchX1 = 345;
-  const branchX2 = 425;
+  const incoming = new Map();
+  const outgoing = new Map();
+  wf.nodes.forEach(n => {
+    incoming.set(n.id, []);
+    outgoing.set(n.id, []);
+  });
 
-  wf.nodes.forEach(node => {
-    let x = 40;
-    let y = 170;
+  if (wf.edges) {
+    wf.edges.forEach(e => {
+      if (outgoing.has(e.from)) outgoing.get(e.from).push(e.to);
+      if (incoming.has(e.to)) incoming.get(e.to).push(e.from);
+    });
+  }
 
-    // Check specific node types and IDs
-    if (node.type === 'SESSION_START') {
-      x = 35;
-      y = 170;
-    } else if (node.type === 'PAGE_VIEW') {
-      x = 95;
-      y = 170;
-    } else if (node.type === 'USER_ACTION') {
-      x = 160;
-      y = 170;
-    } else if (node.type === 'STATE_CHANGE' && !node.isTerminal) {
-      x = 225;
-      y = 170;
-    } else if (node.type === 'API_CALL') {
-      x = 285;
-      y = 170;
-    } else {
-      // Branch nodes
-      const isSuccess = node.expectedOutcome === 'SUCCESS' || happySeq.includes(node.id);
-      const isTimeout = node.expectedOutcome === 'TIMEOUT';
-      const isFail = node.expectedOutcome === 'FAILURE' || (!isSuccess && !isTimeout);
+  // Determine node depths via BFS from entryNode
+  const depths = new Map();
+  const entryId = wf.entryNode || wf.nodes[0]?.id;
+  depths.set(entryId, 0);
 
-      if (isSuccess) {
-        y = 70;
-        x = node.type === 'API_RESULT' ? branchX1 : branchX2;
-      } else if (isTimeout) {
-        y = 170;
-        x = node.type === 'API_RESULT' ? branchX1 : branchX2;
-      } else {
-        y = 270;
-        x = node.type === 'API_RESULT' ? branchX1 : branchX2;
+  const queue = [entryId];
+  while (queue.length > 0) {
+    const curr = queue.shift();
+    const currDepth = depths.get(curr) || 0;
+    const neighbors = outgoing.get(curr) || [];
+    neighbors.forEach(nextId => {
+      const existing = depths.get(nextId);
+      if (existing === undefined || existing < currDepth + 1) {
+        depths.set(nextId, currDepth + 1);
+        queue.push(nextId);
       }
+    });
+  }
+
+  // Fallback depth mapping for any unreached nodes
+  wf.nodes.forEach(node => {
+    if (!depths.has(node.id)) {
+      if (node.type === 'SESSION_START') depths.set(node.id, 0);
+      else if (node.type === 'PAGE_VIEW') depths.set(node.id, 1);
+      else if (node.type === 'USER_ACTION') depths.set(node.id, 2);
+      else if (node.type === 'STATE_CHANGE' && !node.isTerminal) depths.set(node.id, 3);
+      else if (node.type === 'API_CALL') depths.set(node.id, 4);
+      else if (node.type === 'API_RESULT') depths.set(node.id, 5);
+      else depths.set(node.id, 6);
+    }
+  });
+
+  // Group nodes by depth column
+  const depthColumns = new Map();
+  let maxDepth = 0;
+  depths.forEach((d, id) => {
+    if (d > maxDepth) maxDepth = d;
+    if (!depthColumns.has(d)) depthColumns.set(d, []);
+    depthColumns.get(d).push(id);
+  });
+
+  // Calculate dynamic canvas width
+  const colWidth = Math.max(65, Math.min(95, 460 / Math.max(maxDepth, 5)));
+  const totalWidth = Math.max(480, (maxDepth + 1) * colWidth + 50);
+  graphCanvas.width = totalWidth;
+
+  // Place nodes on canvas
+  depthColumns.forEach((nodeIds, colDepth) => {
+    const colX = 35 + colDepth * colWidth;
+
+    const happyNodeId = nodeIds.find(id => happySeq.includes(id));
+    const branchNodes = nodeIds.filter(id => id !== happyNodeId);
+
+    // Place happy path node on center line (y = 170)
+    if (happyNodeId) {
+      const node = nodeMap.get(happyNodeId);
+      layoutNodes.push({
+        id: node.id,
+        label: formatNodeLabel(node),
+        type: node.type,
+        outcome: node.expectedOutcome,
+        x: colX,
+        y: 170,
+        radius: 18,
+        raw: node
+      });
     }
 
-    layoutNodes.push({
-      id: node.id,
-      label: formatNodeLabel(node),
-      type: node.type,
-      outcome: node.expectedOutcome,
-      x,
-      y,
-      radius: 18,
-      raw: node
-    });
+    // Place branch nodes symmetrically
+    const totalBranches = branchNodes.length;
+    if (totalBranches === 1) {
+      const node = nodeMap.get(branchNodes[0]);
+      const isAuthOrQuota = /auth|permission|rate|quota/i.test(node.id) || (node.label && /401|403|429/.test(node.label));
+      const branchY = isAuthOrQuota ? 75 : 265;
+      layoutNodes.push({
+        id: node.id,
+        label: formatNodeLabel(node),
+        type: node.type,
+        outcome: node.expectedOutcome,
+        x: colX,
+        y: branchY,
+        radius: 18,
+        raw: node
+      });
+    } else if (totalBranches > 1) {
+      const branchYSlots = [55, 285, 110, 230, 310, 30];
+      branchNodes.forEach((nodeId, idx) => {
+        const node = nodeMap.get(nodeId);
+        const branchY = branchYSlots[idx % branchYSlots.length];
+        layoutNodes.push({
+          id: node.id,
+          label: formatNodeLabel(node),
+          type: node.type,
+          outcome: node.expectedOutcome,
+          x: colX,
+          y: branchY,
+          radius: 18,
+          raw: node
+        });
+      });
+    }
   });
 
   // Layout Edges
@@ -864,17 +1081,34 @@ function layoutGraph(graph) {
 function formatNodeLabel(node) {
   if (node.type === 'SESSION_START') return 'START';
   if (node.type === 'PAGE_VIEW') return 'PAGE';
-  if (node.type === 'USER_ACTION') return 'CLICK';
-  if (node.type === 'API_CALL') return 'API';
+  if (node.type === 'USER_ACTION') {
+    const lbl = (node.label || '').replace(/^Click:/i, '');
+    return lbl.length > 7 ? lbl.slice(0, 6) + '…' : lbl || 'CLICK';
+  }
+  if (node.type === 'API_CALL') {
+    const lbl = (node.label || '').replace(/^ApiCall:/i, '');
+    const segments = lbl.split('/').filter(Boolean);
+    const lastSeg = segments[segments.length - 1] || 'API';
+    return lastSeg.length > 8 ? lastSeg.slice(0, 7) + '…' : lastSeg;
+  }
   if (node.type === 'API_RESULT') {
+    const lbl = node.label || '';
+    if (lbl.includes('200') || lbl.includes('201')) return '200 OK';
+    if (lbl.includes('401')) return '401 AUTH';
+    if (lbl.includes('403')) return '403 FORBID';
+    if (lbl.includes('429')) return '429 LIMIT';
+    if (lbl.includes('422')) return '422 VALID';
+    if (lbl.includes('504') || lbl.includes('TIMEOUT') || node.expectedOutcome === 'TIMEOUT') return '504 T/O';
+    if (lbl.includes('500') || lbl.includes('502')) return '500 ERR';
     if (node.expectedOutcome === 'SUCCESS') return '200 OK';
-    if (node.expectedOutcome === 'TIMEOUT') return 'TIMEOUT';
     return 'ERR';
   }
   if (node.isTerminal) {
-    if (node.expectedOutcome === 'SUCCESS') return 'DONE';
-    if (node.expectedOutcome === 'TIMEOUT') return 'RETRY';
-    return 'ALERT';
+    if (node.expectedOutcome === 'SUCCESS') return 'DONE ✅';
+    if (node.id.includes('auth') || node.id.includes('permission')) return 'REAUTH 🔒';
+    if (node.id.includes('rate') || node.id.includes('quota')) return 'LIMIT ⏳';
+    if (node.expectedOutcome === 'TIMEOUT') return 'RETRY ⏱️';
+    return 'ALERT ❌';
   }
   return 'STATE';
 }
@@ -882,14 +1116,8 @@ function formatNodeLabel(node) {
 function renderCanvasGraph() {
   const ctx = graphCanvas.getContext('2d');
   const dpr = window.devicePixelRatio || 1;
-  const width = graphCanvas.clientWidth || 480;
-  const height = graphCanvas.clientHeight || 340;
-
-  // Match canvas dimensions to display size
-  if (graphCanvas.width !== width * dpr || graphCanvas.height !== height * dpr) {
-    graphCanvas.width = width * dpr;
-    graphCanvas.height = height * dpr;
-  }
+  const width = graphCanvas.width;
+  const height = 340;
 
   ctx.save();
   ctx.scale(dpr, dpr);
@@ -924,23 +1152,23 @@ function renderCanvasGraph() {
 function drawEdge(ctx, edge) {
   const { from, to, path } = edge;
 
-  // Determine line color
+  // Determine line color by pathway
   let strokeColor = '#475569';
   if (path === 'happy_path') strokeColor = '#10b981';
-  else if (path === 'timeout_failure_path') strokeColor = '#f59e0b';
-  else if (path === 'cors_error_path' || path === 'network_failure_path') strokeColor = '#ef4444';
+  else if (path.includes('auth') || path.includes('permission')) strokeColor = '#a855f7';
+  else if (path.includes('rate') || path.includes('quota')) strokeColor = '#fb923c';
+  else if (path.includes('timeout') || path.includes('latency')) strokeColor = '#f59e0b';
+  else if (path.includes('fail') || path.includes('error') || path.includes('cors') || path.includes('validation')) strokeColor = '#ef4444';
 
   ctx.save();
   ctx.beginPath();
   ctx.strokeStyle = strokeColor;
   ctx.lineWidth = 2;
 
-  // Curved or straight arrow
   const dx = to.x - from.x;
   const dy = to.y - from.y;
 
   if (Math.abs(dy) > 10) {
-    // Bezier curve
     const cp1x = from.x + dx * 0.5;
     const cp1y = from.y;
     const cp2x = from.x + dx * 0.5;
@@ -950,10 +1178,8 @@ function drawEdge(ctx, edge) {
     ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, to.x, to.y);
     ctx.stroke();
 
-    // Arrow head
     drawArrowHead(ctx, cp2x, cp2y, to.x, to.y, strokeColor);
   } else {
-    // Straight line
     ctx.moveTo(from.x, from.y);
     ctx.lineTo(to.x, to.y);
     ctx.stroke();
@@ -983,10 +1209,14 @@ function drawNode(ctx, node) {
   const isSelected = node.id === selectedNodeId;
   const isHovered = node.id === hoveredNodeId;
 
-  // Node Color by Type & Outcome
   let fillColor = '#1e293b';
   let strokeColor = '#64748b';
   let textColor = '#ffffff';
+
+  const isAuth = (node.label && (node.label.includes('401') || node.label.includes('403'))) ||
+                 (node.id && (node.id.includes('auth') || node.id.includes('permission')));
+  const isRateLimit = (node.label && (node.label.includes('429'))) ||
+                      (node.id && (node.id.includes('rate') || node.id.includes('quota')));
 
   if (node.type === 'SESSION_START') {
     fillColor = '#312e81';
@@ -1000,6 +1230,12 @@ function drawNode(ctx, node) {
   } else if (node.type === 'API_CALL') {
     fillColor = '#164e63';
     strokeColor = '#06b6d4';
+  } else if (isAuth) {
+    fillColor = '#4a044e';
+    strokeColor = '#a855f7';
+  } else if (isRateLimit) {
+    fillColor = '#7c2d12';
+    strokeColor = '#fb923c';
   } else if (node.outcome === 'SUCCESS') {
     fillColor = '#064e3b';
     strokeColor = '#10b981';
@@ -1013,7 +1249,6 @@ function drawNode(ctx, node) {
 
   ctx.save();
 
-  // Highlight glow if selected or hovered
   if (isSelected || isHovered) {
     ctx.shadowColor = isSelected ? '#38bdf8' : '#94a3b8';
     ctx.shadowBlur = isSelected ? 12 : 6;
@@ -1029,7 +1264,6 @@ function drawNode(ctx, node) {
   ctx.strokeStyle = isSelected ? '#ffffff' : strokeColor;
   ctx.stroke();
 
-  // Reset shadow for text
   ctx.shadowBlur = 0;
 
   // Draw Node Label text
@@ -1091,10 +1325,10 @@ function selectNode(nodeId) {
 
   let desc = nodeObj.description || '';
   if (nodeObj.constraints && nodeObj.constraints.timeoutThresholdMs) {
-    desc += ` | Timeout threshold: ${nodeObj.constraints.timeoutThresholdMs}ms`;
+    desc += ` | Timeout SLA: ${nodeObj.constraints.timeoutThresholdMs}ms`;
   }
   if (nodeObj.knownCauses && nodeObj.knownCauses.length > 0) {
-    desc += ` | Known causes: ${nodeObj.knownCauses.join(', ')}`;
+    desc += ` | Known Root Causes: ${nodeObj.knownCauses.join(', ')}`;
   }
   nodeInfoDesc.innerText = desc;
 }
