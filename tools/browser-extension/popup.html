@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Argus: SystemSleuth</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="header">
+    <div class="logo">
+      <span class="logo-icon">👁️</span>
+      <div>
+        <h1 class="logo-title">Argus: SystemSleuth</h1>
+        <p class="logo-subtitle">Behavioral Graph Generator</p>
+      </div>
+    </div>
+    <span class="badge" id="modelBadge">Hybrid Engine</span>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main">
+    <!-- Target Page Info -->
+    <div class="card page-card">
+      <div class="page-title" id="pageTitle">Detecting active page...</div>
+      <div class="page-url" id="pageUrl">https://...</div>
+      <div class="page-meta" id="pageMeta">
+        <span>🔘 <strong id="btnCount">0</strong> buttons</span>
+        <span>📝 <strong id="formCount">0</strong> forms</span>
+        <span>🌐 <strong id="endpointCount">0</strong> endpoints</span>
+      </div>
+    </div>
+
+    <!-- AI Settings (Collapsible) -->
+    <details class="settings-details">
+      <summary class="settings-summary">⚙️ AI Model Configuration (Optional Gemini Key)</summary>
+      <div class="settings-content">
+        <label for="apiKeyInput" class="input-label">Google Gemini API Key (for deep LLM reasoning):</label>
+        <div class="input-row">
+          <input type="password" id="apiKeyInput" placeholder="AIzaSy... (Leave empty for instant offline engine)" />
+          <button id="saveKeyBtn" class="btn btn-secondary">Save</button>
+        </div>
+        <p class="settings-hint">Without an API key, Argus uses its built-in heuristic behavioral engine (100% offline & instant).</p>
+      </div>
+    </details>
+
+    <!-- Action Button -->
+    <button id="generateBtn" class="btn btn-primary btn-generate">
+      <span class="btn-spinner" id="genSpinner"></span>
+      <span id="genBtnText">⚡ Generate Expected Graph</span>
+    </button>
+
+    <!-- Results Section (Visible after generation) -->
+    <div id="resultsSection" class="results-section hidden">
+      <!-- Tabs -->
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="visualizer">📊 Visualizer</button>
+        <button class="tab-btn" data-tab="json">📄 JSON Spec</button>
+        <button class="tab-btn" data-tab="evidence">🔍 Discovered Evidence</button>
+      </div>
+
+      <!-- Tab Content: Visualizer -->
+      <div class="tab-content" id="tabVisualizer">
+        <div class="canvas-container">
+          <canvas id="graphCanvas" width="480" height="340"></canvas>
+          <div class="canvas-legend">
+            <span class="leg-item"><span class="dot dot-session"></span>Session</span>
+            <span class="leg-item"><span class="dot dot-screen"></span>Screen</span>
+            <span class="leg-item"><span class="dot dot-action"></span>Action</span>
+            <span class="leg-item"><span class="dot dot-api"></span>API</span>
+            <span class="leg-item"><span class="dot dot-success"></span>Success ✅</span>
+            <span class="leg-item"><span class="dot dot-timeout"></span>Timeout ⏱️</span>
+            <span class="leg-item"><span class="dot dot-fail"></span>Fail ❌</span>
+          </div>
+        </div>
+        <div class="node-info-panel" id="nodeInfoPanel">
+          <strong id="nodeInfoTitle">Click any node to inspect details</strong>
+          <p id="nodeInfoDesc" class="node-info-desc">Nodes represent discrete states, user actions, and network boundaries.</p>
+        </div>
+      </div>
+
+      <!-- Tab Content: JSON -->
+      <div class="tab-content hidden" id="tabJson">
+        <pre class="json-code" id="jsonOutput"><code>{}</code></pre>
+      </div>
+
+      <!-- Tab Content: Evidence -->
+      <div class="tab-content hidden" id="tabEvidence">
+        <div class="evidence-list" id="evidenceList"></div>
+      </div>
+
+      <!-- Action Footer -->
+      <div class="footer-actions">
+        <button id="copyJsonBtn" class="btn btn-secondary">📋 Copy JSON</button>
+        <button id="downloadJsonBtn" class="btn btn-secondary">💾 Download expected_graph.json</button>
+      </div>
+    </div>
+  </main>
+
+  <script src="popup.js"></script>
+</body>
+</html>

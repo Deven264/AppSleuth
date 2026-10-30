@@ -121,6 +121,7 @@ Argus/
 │   └── graph-3d.html           # 3D orbital perspective visualizer
 ├── tools/                      # Standalone Developer & Extraction Tools
 │   ├── apk-analyzer/           # Black-Box Behavioral Reconstruction (Android APK & On-Device)
+│   ├── browser-extension/      # Zero-CLI Chrome/Edge Extension for Hybrid AI Graph Generation & Visualization
 │   ├── diagnostic-engine/      # AI Divergence Analysis & Root-Cause Diagnostic CLI/Server
 │   └── web-crawler/            # Black-Box Behavioral Reconstruction (Live Web URL Crawler)
 ├── skills/                     # AI Skills & Extractor Tooling
@@ -180,8 +181,9 @@ Argus supports both operational paradigms depending on what assets you have acce
 | Paradigm | When to Use | Tool / Skill | How It Works |
 |---|---|---|---|
 | **White-Box Code Analysis** | You have application source code & test suites | [`skills/`](skills/) (`android-graph-extractor`, `web-graph-extractor`) | Scans executable test specs (Playwright, Cypress, Espresso, JUnit), routing tables, and API interfaces to extract expected behavior. |
-| **Black-Box (Web)** | You only have a live website URL or raw DOM | [`tools/web-crawler/`](tools/web-crawler/) | Reconstructs behavioral workflows by discovering DOM interactive controls, form fields, and network call patterns without requiring source code. |
-| **Black-Box (Mobile)** | You only have a compiled APK or installed on-device app | [`tools/apk-analyzer/`](tools/apk-analyzer/) | Deconstructs manifest activities, launcher entrypoints, deep links, and multi-DEX string pools to synthesize mobile state machines. |
+| **In-Browser Extension (Zero-CLI)** | You are browsing any website in Chrome or Edge | [`tools/browser-extension/`](tools/browser-extension/) | Zero-CLI browser extension with hybrid AI (instant offline heuristic or Gemini 1.5 Flash). Extracts DOM evidence, visualizes graph on canvas, and exports `expected_graph.json`. |
+| **Black-Box (Web CLI)** | You only have a live website URL or raw DOM | [`tools/web-crawler/`](tools/web-crawler/) | Reconstructs behavioral workflows via headless CLI crawler by discovering DOM interactive controls, form fields, and network call patterns without requiring source code. |
+| **Black-Box (Mobile APK)** | You only have a compiled APK or installed on-device app | [`tools/apk-analyzer/`](tools/apk-analyzer/) | Deconstructs manifest activities, launcher entrypoints, deep links, and multi-DEX string pools to synthesize mobile state machines. |
 
 ### Quick CLI Usage:
 
@@ -218,6 +220,7 @@ python skills/android-graph-extractor/scripts/extract_code_context.py /path/to/a
 - [x] **Phase 2:** Web E-Commerce Checkout interactive demo with network scenario simulator.
 - [x] **Phase 2:** Test-driven automated behavioral graph extraction for Android & Web (`skills/`).
 - [x] **Phase 2:** Black-Box Behavioral Reconstruction for Web (`tools/web-crawler/`).
+- [x] **Phase 2.2:** Browser Extension for Zero-CLI In-Browser Expected Graph Generation & Visualizer (`tools/browser-extension/`).
 - [x] **Phase 2.5:** Black-Box Behavioral Reconstruction for Mobile Apps (`tools/apk-analyzer/`).
 - [x] **Phase 3:** Open-source AI Diagnostic Agent CLI and Web service (feed `expected.json` + `actual.json` + user prompt ➔ structured diagnostic report).
 - [ ] **Phase 4:** On-device small language model (SLM) diagnostic agent (offline, privacy-preserving diagnosis).
