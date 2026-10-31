@@ -161,16 +161,29 @@ document.addEventListener('DOMContentLoaded', async () => {
     copyReportBtn.addEventListener('click', onCopyReportClicked);
   }
   if (refreshTraceBtn) {
-    refreshTraceBtn.addEventListener('click', updateFlightRecorderData);
+    refreshTraceBtn.addEventListener('click', async () => {
+      const trace = await updateFlightRecorderData();
+      // Dynamically evolve heuristic graph as new runtime interactions are captured!
+      if (trace && trace.length > 0 && extractedEvidence && (!currentGraph || currentGraph.isHeuristic)) {
+        currentGraph = synthesizeHeuristicGraph(extractedEvidence, trace);
+        currentGraph.isHeuristic = true;
+        layoutGraph(currentGraph);
+        if (jsonOutputEl && jsonOutputEl.querySelector('code')) {
+          jsonOutputEl.querySelector('code').textContent = JSON.stringify(currentGraph, null, 2);
+        }
+        renderCanvasGraph();
+      }
+    });
   }
 
   // Fetch initial flight trace in background
-  await updateFlightRecorderData();
+  const initialTrace = await updateFlightRecorderData();
 
-  // Pre-synthesize initial heuristic graph so Visualizer and Diagnosis are instant
+  // Pre-synthesize initial heuristic graph grounded in any captured flight trace
   if (extractedEvidence && !currentGraph && !isRestrictedUrl(activeTabInfo?.url)) {
     try {
-      currentGraph = synthesizeHeuristicGraph(extractedEvidence);
+      currentGraph = synthesizeHeuristicGraph(extractedEvidence, initialTrace);
+      currentGraph.isHeuristic = true;
       layoutGraph(currentGraph);
       if (jsonOutputEl && jsonOutputEl.querySelector('code')) {
         jsonOutputEl.querySelector('code').textContent = JSON.stringify(currentGraph, null, 2);
@@ -422,8 +435,84 @@ function escapeHtml(str) {
 }
 
 // -------------------------------------------------------------
-// 4. Live Self-Diagnosis Controller
+// 4. Live Self-Diagnosis Controller & Gemini AI Reasoning
 // -------------------------------------------------------------
+async function diagnoseWithGemini(userComplaint, graph, trace, apiKey) {
+  const discovered = await discoverActiveModel(apiKey);
+  const modelsToTry = discovered 
+    ? [discovered, ...CANDIDATE_FLASH_MODELS.filter(m => m !== discovered)]
+    : CANDIDATE_FLASH_MODELS;
+
+  // Extract clean trace events (last 15)
+  const cleanTrace = (trace || []).slice(-15).map(e => ({
+    type: e.type,
+    label: e.label || e.url || e.pathname || '',
+    method: e.method || null,
+    status: e.status !== undefined ? e.status : null,
+    outcome: e.outcome || null,
+    durationMs: e.durationMs || null,
+    error: e.error || null,
+    time: e.timestamp ? new Date(e.timestamp).toLocaleTimeString() : null
+  }));
+
+  const wf = graph?.workflows?.[0];
+  const nodeSummary = (wf?.nodes || []).map(n => ({
+    id: n.id,
+    type: n.type,
+    label: n.label,
+    expectedOutcome: n.expectedOutcome,
+    description: n.description || ''
+  }));
+
+  const prompt = `You are Argus: SystemSleuth's Principal AI Systems SRE and Behavioral Diagnostician.
+Argus performs automated behavioral self-diagnosis by cross-referencing user complaints and runtime flight telemetry against formal state machines.
+
+CONTEXT:
+User's Stated Problem: "${userComplaint}"
+
+EXPECTED BEHAVIORAL GRAPH (State Machine Nodes):
+${JSON.stringify(nodeSummary, null, 2)}
+
+OBSERVED RUNTIME FLIGHT RECORDER TRACE (Chronological):
+${JSON.stringify(cleanTrace, null, 2)}
+
+YOUR MISSION:
+Perform dual-audience forensic diagnosis:
+1. Identify if a divergence occurred:
+   - "DIVERGENCE_DETECTED": An actual network error, 4xx/5xx status, SLA timeout > threshold, CORS rejection, 401/403 authorization error, or 429 rate limit.
+   - "SILENT_UI_FAILURE": Network calls returned 200 OK or no API call fired, but the user's expected action failed to execute or the UI failed to update.
+   - "HEALTHY_EXECUTION": All calls completed with 200 OK and expected latency; no evidence of breakage in the recorded trace.
+2. If diverged, pinpoint the exact "divergedNodeId" from the provided node list (or null if healthy).
+3. Write a "plainEnglishExplanation" for the non-technical end-user (what happened, why their action was interrupted, 2-3 sentences).
+4. Write a "technicalRootCause" for software engineers (exact endpoint, HTTP code, latency vs SLA, microservice state).
+5. Provide a "remediation" array of 3 concrete next steps.
+
+Return strictly JSON matching this structure:
+{
+  "status": "DIVERGENCE_DETECTED" | "SILENT_UI_FAILURE" | "HEALTHY_EXECUTION",
+  "divergedNodeId": "node_id_or_null",
+  "plainEnglishExplanation": "string",
+  "technicalRootCause": "string",
+  "remediation": ["string", "string", "string"]
+}`;
+
+  let lastErr = null;
+  for (const model of modelsToTry) {
+    try {
+      console.log(`[Argus] Diagnosing with model ${model}...`);
+      const diagnosis = await callGeminiGenerate(model, prompt, apiKey);
+      if (diagnosis && diagnosis.status) {
+        return { diagnosis, modelUsed: model };
+      }
+    } catch (err) {
+      console.warn(`[Argus] Model ${model} failed for diagnosis:`, err);
+      lastErr = err;
+    }
+  }
+
+  throw lastErr || new Error('All candidate models failed to generate diagnosis.');
+}
+
 async function onRunDiagnoseClicked() {
   const userComplaint = userProblemInput.value.trim();
   if (!userComplaint) {
@@ -441,75 +530,131 @@ async function onRunDiagnoseClicked() {
     // 1. Refresh latest flight recorder trace
     const trace = await updateFlightRecorderData();
 
-    // 2. Ensure we have an expected graph
+    // 2. Ensure we have an expected graph (grounded in trace)
     if (!currentGraph) {
       currentGraph = synthesizeHeuristicGraph(extractedEvidence || {
         url: activeTabInfo?.url || 'https://example.com',
         title: activeTabInfo?.title || 'Web Application'
-      });
+      }, trace);
       layoutGraph(currentGraph);
     }
 
-    // 3. Inspect Flight Recorder for Failures & Timeouts
-    const failEvent = trace.slice().reverse().find(e =>
-      e.type === 'API_RESULT' && (e.outcome === 'TIMEOUT' || e.outcome === 'FAILURE' || e.status >= 400 || e.status === 0)
-    ) || trace.slice().reverse().find(e => e.type === 'ERROR');
+    // 3. Check for Gemini API key for Deep AI Reasoning
+    const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
+    let aiResult = null;
 
-    const wf = currentGraph.workflows[0];
+    if (apiKey) {
+      try {
+        diagBtnText.innerText = 'Consulting Gemini AI Diagnostician...';
+        aiResult = await diagnoseWithGemini(userComplaint, currentGraph, trace, apiKey);
+      } catch (aiErr) {
+        console.warn('[Argus] Gemini diagnosis failed, falling back to heuristic correlator:', aiErr);
+        showApiNotice(`AI Notice: ${aiErr.message} — using built-in correlation engine.`, 'error');
+      }
+    }
 
-    if (failEvent) {
-      // Divergence detected!
-      const isTimeout = failEvent.outcome === 'TIMEOUT' || failEvent.status === 504 || failEvent.status === 408;
-      const isAuth = failEvent.status === 401 || failEvent.status === 403;
-      const isRateLimit = failEvent.status === 429;
-      const dur = failEvent.durationMs ? `${failEvent.durationMs}ms` : 'several seconds';
-      const endpoint = failEvent.url || failEvent.label || 'network endpoint';
-
-      // Match with graph node
-      let matchedNode = null;
-      if (isTimeout) {
-        matchedNode = wf.nodes.find(n => n.expectedOutcome === 'TIMEOUT') || wf.nodes.find(n => n.type === 'API_RESULT');
-      } else if (isAuth) {
-        matchedNode = wf.nodes.find(n => n.label.includes('403') || n.label.includes('401')) || wf.nodes.find(n => n.type === 'API_RESULT');
-      } else if (isRateLimit) {
-        matchedNode = wf.nodes.find(n => n.label.includes('429')) || wf.nodes.find(n => n.type === 'API_RESULT');
-      } else {
-        matchedNode = wf.nodes.find(n => n.expectedOutcome === 'FAILURE') || wf.nodes.find(n => n.type === 'API_RESULT');
+    if (aiResult && aiResult.diagnosis) {
+      const diag = aiResult.diagnosis;
+      divergedNodeId = diag.divergedNodeId || null;
+      if (!divergedNodeId && diag.status !== 'HEALTHY_EXECUTION') {
+        const wf = currentGraph.workflows[0];
+        divergedNodeId = wf?.terminalNodes?.[1] || null;
       }
 
-      divergedNodeId = matchedNode ? matchedNode.id : wf.terminalNodes[1] || null;
+      const isHealthy = diag.status === 'HEALTHY_EXECUTION';
+      const isSilent = diag.status === 'SILENT_UI_FAILURE';
 
-      // Update Diagnosis Report Card
-      diagnosisReportCard.className = 'card diagnosis-report';
-      diagStatusBadge.className = 'diag-badge';
-      diagStatusBadge.innerText = 'DIVERGENCE DETECTED ⚠️';
-      diagTimestamp.innerText = new Date().toLocaleTimeString();
+      diagnosisReportCard.className = isHealthy 
+        ? 'card diagnosis-report healthy' 
+        : 'card diagnosis-report';
 
-      // Plain English Explanation
-      if (isTimeout) {
-        diagUserExplanation.innerText = `Regarding "${userComplaint}": The request to ${endpoint} exceeded the server timeout threshold (${dur}). No transaction was corrupted, but the server failed to send a confirmation.`;
-      } else if (isAuth) {
-        diagUserExplanation.innerText = `Regarding "${userComplaint}": The request was rejected due to permission or session expiration (HTTP ${failEvent.status}). Your user account lacks active entitlement for this action.`;
-      } else if (isRateLimit) {
-        diagUserExplanation.innerText = `Regarding "${userComplaint}": You have exceeded the active request rate limit or token quota (HTTP 429). The system temporarily paused new submissions.`;
-      } else {
-        diagUserExplanation.innerText = `Regarding "${userComplaint}": The server encountered a fault while processing ${endpoint} (HTTP ${failEvent.status || 'Network Error'}). The action was interrupted.`;
-      }
+      diagStatusBadge.className = isHealthy 
+        ? 'diag-badge healthy' 
+        : 'diag-badge';
 
-      // Technical Developer Diagnosis
-      diagDevExplanation.innerText = `Divergence at node '${matchedNode ? matchedNode.label : endpoint}' (Diverged from happy_path).
+      diagStatusBadge.innerText = isHealthy 
+        ? 'HEALTHY EXECUTION ✅' 
+        : (isSilent ? 'SILENT UI FAULT ⚠️' : 'DIVERGENCE DETECTED ⚠️');
+
+      diagTimestamp.innerText = `${new Date().toLocaleTimeString()} (${aiResult.modelUsed} AI)`;
+      diagUserExplanation.innerText = diag.plainEnglishExplanation || 'Diagnosis completed.';
+      diagDevExplanation.innerText = diag.technicalRootCause || 'Telemetry analyzed.';
+      diagRemediationList.innerHTML = (diag.remediation || [])
+        .map(r => `<li>${escapeHtml(r)}</li>`)
+        .join('');
+
+      latestIncidentReport = `### 🚨 Argus Behavioral Self-Diagnosis Incident Report (${aiResult.modelUsed})
+- **URL:** ${activeTabInfo?.url || 'N/A'}
+- **User Complaint:** "${userComplaint}"
+- **Status:** ${diag.status}
+- **Divergence Node:** ${divergedNodeId || 'N/A'}
+- **What Happened:** ${diag.plainEnglishExplanation}
+- **Root Cause (Technical):** ${diag.technicalRootCause}
+- **Remediation:**
+${(diag.remediation || []).map(r => `  * ${r}`).join('\n')}
+- **Diagnosed By:** Gemini AI Engine via Argus SystemSleuth 1.0`;
+
+    } else {
+      // Deterministic Local Heuristic Correlator
+      const failEvent = trace.slice().reverse().find(e =>
+        e.type === 'API_RESULT' && (e.outcome === 'TIMEOUT' || e.outcome === 'FAILURE' || e.status >= 400 || e.status === 0)
+      ) || trace.slice().reverse().find(e => e.type === 'ERROR');
+
+      const wf = currentGraph.workflows[0];
+
+      if (failEvent) {
+        // Divergence detected!
+        const isTimeout = failEvent.outcome === 'TIMEOUT' || failEvent.status === 504 || failEvent.status === 408;
+        const isAuth = failEvent.status === 401 || failEvent.status === 403;
+        const isRateLimit = failEvent.status === 429;
+        const dur = failEvent.durationMs ? `${failEvent.durationMs}ms` : 'several seconds';
+        const endpoint = failEvent.url || failEvent.label || 'network endpoint';
+
+        // Match with graph node
+        let matchedNode = null;
+        if (isTimeout) {
+          matchedNode = wf.nodes.find(n => n.expectedOutcome === 'TIMEOUT') || wf.nodes.find(n => n.type === 'API_RESULT');
+        } else if (isAuth) {
+          matchedNode = wf.nodes.find(n => n.label.includes('403') || n.label.includes('401')) || wf.nodes.find(n => n.type === 'API_RESULT');
+        } else if (isRateLimit) {
+          matchedNode = wf.nodes.find(n => n.label.includes('429')) || wf.nodes.find(n => n.type === 'API_RESULT');
+        } else {
+          matchedNode = wf.nodes.find(n => n.expectedOutcome === 'FAILURE') || wf.nodes.find(n => n.type === 'API_RESULT');
+        }
+
+        divergedNodeId = matchedNode ? matchedNode.id : wf.terminalNodes[1] || null;
+
+        // Update Diagnosis Report Card
+        diagnosisReportCard.className = 'card diagnosis-report';
+        diagStatusBadge.className = 'diag-badge';
+        diagStatusBadge.innerText = 'DIVERGENCE DETECTED ⚠️';
+        diagTimestamp.innerText = `${new Date().toLocaleTimeString()} (Heuristic Engine)`;
+
+        // Plain English Explanation
+        if (isTimeout) {
+          diagUserExplanation.innerText = `Regarding "${userComplaint}": The request to ${endpoint} exceeded the server timeout threshold (${dur}). No transaction was corrupted, but the server failed to send a confirmation.`;
+        } else if (isAuth) {
+          diagUserExplanation.innerText = `Regarding "${userComplaint}": The request was rejected due to permission or session expiration (HTTP ${failEvent.status}). Your user account lacks active entitlement for this action.`;
+        } else if (isRateLimit) {
+          diagUserExplanation.innerText = `Regarding "${userComplaint}": You have exceeded the active request rate limit or token quota (HTTP 429). The system temporarily paused new submissions.`;
+        } else {
+          diagUserExplanation.innerText = `Regarding "${userComplaint}": The server encountered a fault while processing ${endpoint} (HTTP ${failEvent.status || 'Network Error'}). The action was interrupted.`;
+        }
+
+        // Technical Developer Diagnosis
+        diagDevExplanation.innerText = `Divergence at node '${matchedNode ? matchedNode.label : endpoint}' (Diverged from happy_path).
 Observed: ${failEvent.method || 'CALL'} ${endpoint} ➔ Status ${failEvent.status || 'ERR'} (Elapsed: ${dur}).
 Expected: HTTP 200 OK within 8,000ms SLA.`;
 
-      // Remediation Actions
-      diagRemediationList.innerHTML = `
-        <li>Verify backend microservice status and network latency for <code>${escapeHtml(endpoint)}</code>.</li>
-        <li>Implement automatic idempotent retry with backoff for transient network timeouts.</li>
-        <li>Check authentication token freshness and entitlement grants.</li>
-      `;
+        // Remediation Actions
+        diagRemediationList.innerHTML = `
+          <li>Verify backend microservice status and network latency for <code>${escapeHtml(endpoint)}</code>.</li>
+          <li>Implement automatic idempotent retry with backoff for transient network timeouts.</li>
+          <li>Check authentication token freshness and entitlement grants.</li>
+        `;
 
-      // Store incident report for 1-click clipboard export
-      latestIncidentReport = `### 🚨 Argus Behavioral Self-Diagnosis Incident Report
+        // Store incident report for 1-click clipboard export
+        latestIncidentReport = `### 🚨 Argus Behavioral Self-Diagnosis Incident Report
 - **URL:** ${activeTabInfo?.url || 'N/A'}
 - **User Complaint:** "${userComplaint}"
 - **Status:** DIVERGENCE DETECTED
@@ -518,24 +663,25 @@ Expected: HTTP 200 OK within 8,000ms SLA.`;
 - **Root Cause:** Upstream service latency / error interrupted happy path.
 - **Client:** Chrome Extension / Argus SystemSleuth 1.0`;
 
-    } else {
-      // Normal / Healthy Trace
-      divergedNodeId = null;
-      diagnosisReportCard.className = 'card diagnosis-report healthy';
-      diagStatusBadge.className = 'diag-badge healthy';
-      diagStatusBadge.innerText = 'HEALTHY EXECUTION ✅';
-      diagTimestamp.innerText = new Date().toLocaleTimeString();
+      } else {
+        // Normal / Healthy Trace
+        divergedNodeId = null;
+        diagnosisReportCard.className = 'card diagnosis-report healthy';
+        diagStatusBadge.className = 'diag-badge healthy';
+        diagStatusBadge.innerText = 'HEALTHY EXECUTION ✅';
+        diagTimestamp.innerText = `${new Date().toLocaleTimeString()} (Heuristic Engine)`;
 
-      diagUserExplanation.innerText = `Regarding "${userComplaint}": All recent network calls in the flight recorder returned HTTP 200 OK with normal latency. The application appears to be operating within expected operational parameters.`;
-      diagDevExplanation.innerText = `Zero HTTP errors or timeouts detected across the last ${trace.length} recorded session events.`;
-      diagRemediationList.innerHTML = `
-        <li>No infrastructure anomalies observed. Check frontend UI state assertions or input validation.</li>
-      `;
+        diagUserExplanation.innerText = `Regarding "${userComplaint}": All recent network calls in the flight recorder returned HTTP 200 OK with normal latency. The application appears to be operating within expected operational parameters.`;
+        diagDevExplanation.innerText = `Zero HTTP errors or timeouts detected across the last ${trace.length} recorded session events.`;
+        diagRemediationList.innerHTML = `
+          <li>No infrastructure anomalies observed. Check frontend UI state assertions or input validation.</li>
+        `;
 
-      latestIncidentReport = `### ℹ️ Argus Behavioral Self-Diagnosis Report
+        latestIncidentReport = `### ℹ️ Argus Behavioral Self-Diagnosis Report
 - **URL:** ${activeTabInfo?.url || 'N/A'}
 - **User Query:** "${userComplaint}"
 - **Status:** HEALTHY (Zero failures in flight buffer across ${trace.length} events)`;
+      }
     }
 
     diagnosisReportCard.classList.remove('hidden');
@@ -567,6 +713,9 @@ function onCopyReportClicked() {
 // 5. Graph Generation Controller (Expected Graph)
 // -------------------------------------------------------------
 async function onGenerateClicked() {
+  // 1. Fetch latest runtime flight trace
+  const trace = await updateFlightRecorderData();
+
   if (!extractedEvidence) {
     await inspectActiveTab();
   }
@@ -576,7 +725,7 @@ async function onGenerateClicked() {
   genBtnText.innerText = 'Deconstructing Full-Stack Architecture...';
   hideApiNotice();
 
-  const apiKey = apiKeyInput.value.trim();
+  const apiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
   const mode = synthesisModeSelect ? synthesisModeSelect.value : 'deep';
 
   try {
@@ -586,10 +735,10 @@ async function onGenerateClicked() {
     if (apiKey) {
       try {
         genBtnText.innerText = mode === 'deep' 
-          ? 'Pass 1/2: Deconstructing Backend Microservices & Edge Cases...' 
+          ? 'Pass 1/2: Grounding in Runtime Trace & Synthesizing Edge Cases...' 
           : 'Consulting Gemini Systems Architect...';
         
-        const synthesisResult = await synthesizeWithGemini(extractedEvidence, apiKey, mode);
+        const synthesisResult = await synthesizeWithGemini(extractedEvidence, apiKey, mode, trace);
         if (synthesisResult && synthesisResult.graph && synthesisResult.graph.workflows) {
           graph = synthesisResult.graph;
           modelUsed = synthesisResult.modelUsed;
@@ -603,7 +752,8 @@ async function onGenerateClicked() {
 
     if (!graph) {
       genBtnText.innerText = 'Synthesizing with Offline Heuristic Engine...';
-      graph = synthesizeHeuristicGraph(extractedEvidence);
+      graph = synthesizeHeuristicGraph(extractedEvidence, trace);
+      graph.isHeuristic = true;
     }
 
     currentGraph = graph;
@@ -722,7 +872,7 @@ async function callGeminiGenerate(modelName, prompt, apiKey) {
   return JSON.parse(rawText);
 }
 
-async function synthesizeWithGemini(evidence, apiKey, mode = 'deep') {
+async function synthesizeWithGemini(evidence, apiKey, mode = 'deep', trace = []) {
   const discovered = await discoverActiveModel(apiKey);
   const modelsToTry = discovered 
     ? [discovered, ...CANDIDATE_FLASH_MODELS.filter(m => m !== discovered)]
@@ -731,6 +881,27 @@ async function synthesizeWithGemini(evidence, apiKey, mode = 'deep') {
   let successfulModel = null;
   let lastError = null;
   let finalGraph = null;
+
+  const cleanTrace = (trace || []).slice(-15).filter(e => {
+    const url = e.url || '';
+    return !url.includes('ddforward') && !url.includes('rum?') && !url.includes('analytics') && !url.includes('telemetry');
+  });
+
+  const tracePromptSection = cleanTrace.length > 0 ? `
+REAL RUNTIME INTERACTION TRACE (Intercepted from active user session):
+${JSON.stringify(cleanTrace.map(e => ({
+  type: e.type,
+  label: e.label || e.url || '',
+  method: e.method || null,
+  status: e.status !== undefined ? e.status : null,
+  durationMs: e.durationMs || null
+})), null, 2)}
+
+MANDATORY GROUNDING INSTRUCTION:
+The user has executed real interactions and the web client has dispatched real network calls shown in the trace above.
+Your synthesized workflow MUST BE DIRECTLY GROUNDED IN THESE OBSERVED ACTIONS AND ENDPOINTS!
+Incorporate the observed user action and real endpoints into the primary happy path sequence, and synthesize realistic production-grade failure branches (401/403 auth, 429 rate limit, SLA timeouts, 500 errors) around them.
+` : '';
 
   if (mode === 'deep') {
     genBtnText.innerText = 'Pass 1/2: Deconstructing Backend Microservices & Edge Cases...';
@@ -744,10 +915,11 @@ Headings: ${JSON.stringify(evidence.headings || [])}
 Buttons: ${JSON.stringify(evidence.buttons || [])}
 Forms: ${JSON.stringify(evidence.forms || [])}
 Discovered Script Endpoints: ${JSON.stringify(evidence.scriptEndpoints || [])}
+${tracePromptSection}
 
 CRITICAL RULES:
 1. DO NOT generate toy templates with generic home-page URLs (like "${evidence.url}").
-2. INFER REALISTIC PRODUCTION-GRADE BACKEND ENDPOINTS matching the domain.
+2. INFER REALISTIC PRODUCTION-GRADE BACKEND ENDPOINTS matching the domain, prioritizing actual observed endpoints from the runtime trace if present.
 3. Deconstruct the interaction into a multi-step pipeline (Step 1: Auth/Entitlement pre-flight, Step 2: Primary execution).
 4. Define critical edge cases (401/403 Auth, 429 RateLimit, 504 Gateway Timeout, 422 Validation).
 
@@ -840,9 +1012,10 @@ Headings: ${JSON.stringify(evidence.headings || [])}
 Buttons: ${JSON.stringify(evidence.buttons || [])}
 Forms: ${JSON.stringify(evidence.forms || [])}
 Discovered Script Endpoints: ${JSON.stringify(evidence.scriptEndpoints || [])}
+${tracePromptSection}
 
 Rules:
-1. In-depth full-stack modeling with realistic endpoints (not "${evidence.url}").
+1. In-depth full-stack modeling with realistic endpoints (not "${evidence.url}"). Ground the workflow in actual observed endpoints from the runtime trace if provided.
 2. Include at least 3 distinct production edge cases: 401/403 Auth, 429 RateLimit, 504 Gateway Timeout.
 3. Model distinct failure paths in "paths": "happy_path", "auth_failure_path", "rate_limit_path", "timeout_failure_path".
 
@@ -867,11 +1040,11 @@ Return strictly valid JSON matching Argus schema.`;
 }
 
 // -------------------------------------------------------------
-// 7. Built-in Offline Heuristic Synthesizer (Edge-Case Ready)
+// 7. Built-in Offline Heuristic Synthesizer (Edge-Case Ready & Trace Grounded)
 // -------------------------------------------------------------
-function synthesizeHeuristicGraph(evidence) {
-  const url = new URL(evidence.url || 'https://example.com');
-  const pathname = url.pathname === '/' ? '/home' : url.pathname;
+function synthesizeHeuristicGraph(evidence, trace = []) {
+  const parsedUrl = safeParseUrl(evidence.url || 'https://example.com');
+  const pathname = parsedUrl.pathname === '/' ? '/home' : parsedUrl.pathname;
   const cleanTitle = (evidence.title || 'WebApp').replace(/[^a-zA-Z0-9]/g, '');
 
   let primaryAction = 'Submit';
@@ -886,12 +1059,39 @@ function synthesizeHeuristicGraph(evidence) {
   let authEndpoint = `/api/v1/auth/entitlement`;
   let execEndpoint = `/api/v1/action/execute`;
 
-  if (evidence.scriptEndpoints && evidence.scriptEndpoints.length >= 2) {
+  // Dynamic Runtime Grounding from Real Trace
+  const realEndpoints = (trace || [])
+    .filter(e => (e.type === 'API_CALL' || e.type === 'API_RESULT') && e.url && !e.url.includes('/rum') && !e.url.includes('analytics') && !e.url.includes('telemetry'))
+    .map(e => {
+      try {
+        const u = new URL(e.url, parsedUrl.url);
+        return u.pathname + (u.search ? u.search : '');
+      } catch {
+        return e.url;
+      }
+    });
+
+  const lastUserAction = (trace || [])
+    .slice().reverse()
+    .find(e => e.type === 'USER_ACTION');
+
+  if (lastUserAction && lastUserAction.label) {
+    primaryAction = lastUserAction.label.replace(/^Click:\s*/i, '').slice(0, 28);
+  }
+
+  if (realEndpoints.length > 0) {
+    execEndpoint = realEndpoints[realEndpoints.length - 1];
+    if (realEndpoints.length > 1) {
+      authEndpoint = realEndpoints[0];
+    } else {
+      authEndpoint = `${execEndpoint.split('?')[0]}/precheck`;
+    }
+  } else if (evidence.scriptEndpoints && evidence.scriptEndpoints.length >= 2) {
     authEndpoint = evidence.scriptEndpoints[0];
     execEndpoint = evidence.scriptEndpoints[1];
   } else if (evidence.scriptEndpoints && evidence.scriptEndpoints.length === 1) {
     execEndpoint = evidence.scriptEndpoints[0];
-  } else if (url.hostname.includes('github.com')) {
+  } else if (parsedUrl.url.includes('github.com')) {
     authEndpoint = '/api/v3/user/copilot/entitlement';
     execEndpoint = '/github-copilot/v1/chat/completions';
   } else if (pathname !== '/home') {
