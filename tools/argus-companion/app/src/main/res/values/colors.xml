@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark SRE Theme Palette -->
+    <color name="argus_primary">#0D1117</color>
+    <color name="argus_surface">#161B22</color>
+    <color name="argus_card">#21262D</color>
+    <color name="argus_border">#30363D</color>
+    <color name="argus_accent">#58A6FF</color>
+    <color name="argus_highlight">#1F6FEB</color>
+
+    <!-- Status Colors -->
+    <color name="argus_success">#2EA043</color>
+    <color name="argus_warning">#D29922</color>
+    <color name="argus_error">#F85149</color>
+    <color name="argus_purple">#A371F7</color>
+    <color name="argus_cyan">#39C5CF</color>
+
+    <!-- Typography -->
+    <color name="argus_text_primary">#F0F6FC</color>
+    <color name="argus_text_secondary">#8B949E</color>
+    <color name="argus_text_muted">#484F58</color>
+
+    <color name="white">#FFFFFF</color>
+    <color name="black">#000000</color>
+</resources>

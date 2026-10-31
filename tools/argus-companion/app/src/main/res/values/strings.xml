@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Argus Companion</string>
+    <string name="accessibility_service_label">Argus UI Monitor</string>
+    <string name="accessibility_service_description">Argus Companion monitors UI interactions across apps to help diagnose issues in real-time. No personal data is stored or transmitted.</string>
+
+    <!-- Navigation Tabs -->
+    <string name="tab_trace">📡 Live Trace</string>
+    <string name="tab_diagnose">🔬 Diagnose</string>
+    <string name="tab_settings">⚙️ Settings</string>
+
+    <!-- Buttons -->
+    <string name="btn_start_monitoring">Start Monitoring</string>
+    <string name="btn_stop_monitoring">Stop Monitoring</string>
+    <string name="btn_diagnose">Diagnose My Problem</string>
+    <string name="btn_diagnosing">Diagnosing with AI…</string>
+    <string name="btn_clear_trace">Clear</string>
+    <string name="btn_open_accessibility">Enable UI Monitor</string>
+    <string name="btn_open_vpn">Enable Network Monitor</string>
+    <string name="btn_save_key">Save Key</string>
+
+    <!-- Statuses -->
+    <string name="status_accessibility_on">🟢 UI Monitor: Active</string>
+    <string name="status_accessibility_off">🔴 UI Monitor: Off</string>
+    <string name="status_vpn_on">🟢 Network: Active</string>
+    <string name="status_vpn_off">🔴 Network: Off</string>
+    <string name="monitoring_app">Monitoring: %s</string>
+    <string name="monitoring_idle">Waiting for active app…</string>
+
+    <!-- Prompts & Placeholders -->
+    <string name="hint_complaint">Describe what went wrong (e.g. \"Tapped Checkout, loading spinner spun forever and then nothing happened\")…</string>
+    <string name="hint_api_key">Gemini API Key (optional — enables deep AI reasoning)</string>
+    <string name="no_events_yet">No session events captured yet.\n\n1. Ensure UI & Network monitors are active.\n2. Open any app and perform your actions.\n3. Return here to inspect the trace or run a self-diagnosis.</string>
+    <string name="diagnosis_placeholder">Your AI behavioral diagnosis report will appear here.\n\nDescribe your issue above and tap \"Diagnose My Problem\" to generate a root-cause analysis.</string>
+</resources>

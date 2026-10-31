@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ArgusCompanion" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/argus_highlight</item>
+        <item name="colorPrimaryVariant">@color/argus_surface</item>
+        <item name="colorOnPrimary">@color/white</item>
+        <item name="colorSecondary">@color/argus_accent</item>
+        <item name="colorOnSecondary">@color/argus_primary</item>
+        <item name="android:statusBarColor">@color/argus_primary</item>
+        <item name="android:navigationBarColor">@color/argus_primary</item>
+        <item name="android:windowBackground">@color/argus_primary</item>
+        <item name="colorSurface">@color/argus_surface</item>
+        <item name="colorOnSurface">@color/argus_text_primary</item>
+    </style>
+</resources>

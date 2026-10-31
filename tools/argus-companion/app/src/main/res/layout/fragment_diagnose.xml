@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/argus_primary"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Zero-CLI Self-Diagnosis"
+            android:textColor="@color/argus_text_primary"
+            android:textSize="16sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Argus compares your app's actual runtime journey against expected behaviors to isolate silent failures, timeouts, and auth issues."
+            android:textColor="@color/argus_text_secondary"
+            android:textSize="12sp"
+            android:lineSpacingMultiplier="1.2" />
+
+        <!-- User Complaint Input -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:hint="@string/hint_complaint"
+            app:boxBackgroundColor="@color/argus_surface"
+            app:boxStrokeColor="@color/argus_accent"
+            app:hintTextColor="@color/argus_accent"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etComplaint"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:minLines="3"
+                android:maxLines="6"
+                android:gravity="top|start"
+                android:inputType="textMultiLine"
+                android:textColor="@color/argus_text_primary"
+                android:textSize="13sp" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Diagnose Action Button -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDiagnose"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="12dp"
+            android:text="@string/btn_diagnose"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:backgroundTint="@color/argus_highlight"
+            app:cornerRadius="6dp" />
+
+        <!-- Progress Indicator -->
+        <ProgressBar
+            android:id="@+id/progressBar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="16dp"
+            android:indeterminateTint="@color/argus_accent"
+            android:visibility="gone" />
+
+        <!-- Diagnosis Result Card -->
+        <androidx.cardview.widget.CardView
+            android:id="@+id/cardResult"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            app:cardBackgroundColor="@color/argus_surface"
+            app:cardCornerRadius="8dp"
+            app:cardElevation="2dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="16dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <TextView
+                        android:id="@+id/tvReportTitle"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Behavioral Diagnosis"
+                        android:textColor="@color/argus_text_primary"
+                        android:textSize="15sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvReportEngineBadge"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/bg_event_badge"
+                        android:paddingStart="6dp"
+                        android:paddingEnd="6dp"
+                        android:paddingTop="2dp"
+                        android:paddingBottom="2dp"
+                        android:text="Offline Heuristic"
+                        android:textColor="@color/argus_cyan"
+                        android:textSize="10sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginTop="10dp"
+                    android:layout_marginBottom="12dp"
+                    android:background="@color/argus_border" />
+
+                <!-- User Facing Plain-English Explanation -->
+                <TextView
+                    android:id="@+id/tvUserExplanation"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/diagnosis_placeholder"
+                    android:textColor="@color/argus_text_primary"
+                    android:textSize="13sp"
+                    android:lineSpacingMultiplier="1.3" />
+
+                <!-- Technical Root Cause Section -->
+                <LinearLayout
+                    android:id="@+id/layoutTechnicalCause"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="12dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Technical Root Cause:"
+                        android:textColor="@color/argus_accent"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvTechnicalCause"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textColor="@color/argus_text_secondary"
+                        android:textSize="12sp"
+                        android:lineSpacingMultiplier="1.2" />
+                </LinearLayout>
+
+                <!-- Divergence Point Section -->
+                <LinearLayout
+                    android:id="@+id/layoutDivergence"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:layout_marginTop="10dp"
+                    android:visibility="gone">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Diverged from Expected Journey At:"
+                        android:textColor="@color/argus_warning"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/tvDivergedStep"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:textColor="@color/argus_text_primary"
+                        android:textSize="12sp"
+                        android:fontFamily="monospace" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </androidx.cardview.widget.CardView>
+
+    </LinearLayout>
+</ScrollView>
