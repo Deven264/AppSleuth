@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const trace = await updateFlightRecorderData();
       // Dynamically evolve heuristic graph as new runtime interactions are captured!
       if (trace && trace.length > 0 && extractedEvidence && (!currentGraph || currentGraph.isHeuristic)) {
-        currentGraph = synthesizeHeuristicGraph(extractedEvidence, trace);
+        currentGraph = buildJourneyGraph(extractedEvidence, trace);
         currentGraph.isHeuristic = true;
         layoutGraph(currentGraph);
         if (jsonOutputEl && jsonOutputEl.querySelector('code')) {
@@ -182,7 +182,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Pre-synthesize initial heuristic graph grounded in any captured flight trace
   if (extractedEvidence && !currentGraph && !isRestrictedUrl(activeTabInfo?.url)) {
     try {
-      currentGraph = synthesizeHeuristicGraph(extractedEvidence, initialTrace);
+      currentGraph = buildJourneyGraph(extractedEvidence, initialTrace);
       currentGraph.isHeuristic = true;
       layoutGraph(currentGraph);
       if (jsonOutputEl && jsonOutputEl.querySelector('code')) {
@@ -534,7 +534,7 @@ async function onRunDiagnoseClicked() {
 
     // 2. Ensure we have an expected graph (grounded in trace)
     if (!currentGraph) {
-      currentGraph = synthesizeHeuristicGraph(extractedEvidence || {
+      currentGraph = buildJourneyGraph(extractedEvidence || {
         url: activeTabInfo?.url || 'https://example.com',
         title: activeTabInfo?.title || 'Web Application'
       }, trace);
@@ -754,7 +754,7 @@ async function onGenerateClicked() {
 
     if (!graph) {
       genBtnText.innerText = 'Synthesizing with Offline Heuristic Engine...';
-      graph = synthesizeHeuristicGraph(extractedEvidence, trace);
+      graph = buildJourneyGraph(extractedEvidence, trace);
       graph.isHeuristic = true;
     }
 
@@ -884,62 +884,69 @@ async function synthesizeWithGemini(evidence, apiKey, mode = 'deep', trace = [])
   let lastError = null;
   let finalGraph = null;
 
-  const cleanTrace = (trace || []).slice(-15).filter(e => {
-    const url = e.url || '';
-    return !url.includes('ddforward') && !url.includes('rum?') && !url.includes('analytics') && !url.includes('telemetry');
+  // Filter noise: Datadog RUM, analytics, telemetry
+  const NOISE_PATTERNS_GEMINI = ['ddforward', '_dd.api', '/rum?', 'analytics', 'telemetry', 'beacon', 'bat.bing', 'doubleclick', 'google-analytics'];
+  const cleanTrace = (trace || []).slice(-30).filter(e => {
+    const u = e.url || '';
+    return !NOISE_PATTERNS_GEMINI.some(p => u.includes(p));
   });
 
   const tracePromptSection = cleanTrace.length > 0 ? `
-REAL RUNTIME INTERACTION TRACE (Intercepted from active user session):
+REAL RUNTIME SESSION TRACE — Cumulative chronological sequence observed from the active user session:
 ${JSON.stringify(cleanTrace.map(e => ({
   type: e.type,
   label: e.label || e.url || '',
   method: e.method || null,
   status: e.status !== undefined ? e.status : null,
-  durationMs: e.durationMs || null
+  durationMs: e.durationMs || null,
+  error: e.error || null
 })), null, 2)}
 
 MANDATORY GROUNDING INSTRUCTION:
-The user has executed real interactions and the web client has dispatched real network calls shown in the trace above.
-Your synthesized workflow MUST BE DIRECTLY GROUNDED IN THESE OBSERVED ACTIONS AND ENDPOINTS!
-Incorporate the observed user action and real endpoints into the primary happy path sequence, and synthesize realistic production-grade failure branches (401/403 auth, 429 rate limit, SLA timeouts, 500 errors) around them.
-` : '';
+Build the behavioral graph as a CUMULATIVE SESSION JOURNEY — a chronological DAG of every real PAGE_VIEW, USER_ACTION, API_CALL, and API_RESULT in the order they actually occurred.
+Each observed event becomes a node in the journey. Fault events (aborted requests, timeouts, 4xx/5xx) branch off to fault terminal nodes exactly where they occurred.
+The graph must reflect the full causal chain so the diagnosis AI can answer "why did X fail?" with exact session context.
+` : `
+NO TRACE EVENTS CAPTURED YET.
+Synthesize a plausible expected journey for this page, modelling the most likely user actions and the API calls they trigger.
+`;
 
   if (mode === 'deep') {
-    genBtnText.innerText = 'Pass 1/2: Deconstructing Backend Microservices & Edge Cases...';
-    const stage1Prompt = `You are Argus: SystemSleuth's Principal Distributed Systems SRE and Behavioral Architect.
-Argus performs automated behavioral self-diagnosis by modeling web applications as formal state machines with deep failure-mode coverage.
+    genBtnText.innerText = 'Pass 1/2: Analysing Session Journey & Identifying Fault Points...';
+    const stage1Prompt = `You are Argus: SystemSleuth's Principal Distributed Systems SRE and Session Analyst.
+Argus diagnoses web application issues by building a CUMULATIVE SESSION JOURNEY DAG — a chronological graph of every real action and its causal API chain, exactly as it happened in the real user session.
 
-Analyze the webpage evidence and deconstruct the real-world distributed system behind the user's primary action on this page:
+${tracePromptSection}
+
+Page Context (secondary — use only to fill gaps in trace):
 URL: ${evidence.url}
 Title: ${evidence.title}
 Headings: ${JSON.stringify(evidence.headings || [])}
 Buttons: ${JSON.stringify(evidence.buttons || [])}
 Forms: ${JSON.stringify(evidence.forms || [])}
 Discovered Script Endpoints: ${JSON.stringify(evidence.scriptEndpoints || [])}
-${tracePromptSection}
 
 CRITICAL RULES:
-1. DO NOT generate toy templates with generic home-page URLs (like "${evidence.url}").
-2. INFER REALISTIC PRODUCTION-GRADE BACKEND ENDPOINTS matching the domain, prioritizing actual observed endpoints from the runtime trace if present.
-3. Deconstruct the interaction into a multi-step pipeline (Step 1: Auth/Entitlement pre-flight, Step 2: Primary execution).
-4. Define critical edge cases (401/403 Auth, 429 RateLimit, 504 Gateway Timeout, 422 Validation).
+1. The SESSION TRACE is the PRIMARY source of truth. Model every observed PAGE_VIEW, USER_ACTION, API_CALL, and API_RESULT as sequential journey nodes.
+2. Identify fault points: aborted requests, timeouts, 4xx/5xx responses — these are deviation nodes that branch off the happy path.
+3. For each API endpoint observed, document: method, URL pattern, observed status, durationMs, and whether it was a fault.
+4. Identify the ROOT CAUSE of any observed failures (e.g., AbortController race from double-click re-navigation, auth failures, rate limits, upstream timeouts).
+5. Map the causal chain: which user action triggered which API call that produced which fault.
 
 Return strictly JSON matching this structure:
 {
-  "featureId": "string",
-  "featureName": "string",
-  "featureDescription": "string",
-  "primaryUserAction": "string",
-  "apiPipeline": [
-    { "step": 1, "name": "AuthCheck", "method": "GET", "endpoint": "string", "timeoutMs": 3000 },
-    { "step": 2, "name": "PrimaryExecution", "method": "POST", "endpoint": "string", "timeoutMs": 10000 }
+  "sessionId": "string (derived from first PAGE_VIEW hostname)",
+  "journeyTitle": "string (describe what the user was trying to do)",
+  "journeyDescription": "string (plain-English summary of the full session)",
+  "observedSteps": [
+    { "stepIndex": 1, "type": "PAGE_VIEW|USER_ACTION|API_CALL|API_RESULT|ERROR", "label": "string", "isFault": false, "faultReason": null }
   ],
-  "edgeCases": [
-    { "id": "auth_failure", "code": 403, "label": "ApiResult:403:Forbidden", "cause": "string", "stateResult": "StateChange:AuthError" },
-    { "id": "rate_limit", "code": 429, "label": "ApiResult:429:TooManyRequests", "cause": "string", "stateResult": "StateChange:RateLimitBanner" },
-    { "id": "timeout", "code": 504, "label": "ApiResult:504:GatewayTimeout", "cause": "string", "stateResult": "StateChange:TimeoutNotice" },
-    { "id": "validation_error", "code": 422, "label": "ApiResult:422:UnprocessableEntity", "cause": "string", "stateResult": "StateChange:ValidationError" }
+  "faultPoints": [
+    { "stepIndex": 3, "label": "string", "faultType": "ABORTED|TIMEOUT|AUTH_FAIL|SERVER_ERROR|RATE_LIMIT", "cause": "string (plain English)", "triggeredBy": "stepIndex of the action that caused this" }
+  ],
+  "happyPathSteps": [1, 2, 3],
+  "apiPipeline": [
+    { "step": 1, "name": "string", "method": "GET|POST", "endpoint": "string", "observedStatus": 200, "durationMs": 500, "isFault": false }
   ]
 }`;
 
@@ -958,43 +965,52 @@ Return strictly JSON matching this structure:
       throw lastError || new Error('Failed to complete Pass 1');
     }
 
-    genBtnText.innerText = `Pass 2/2 (${successfulModel}): Synthesizing Full State Machine & Edge-Case Matrix...`;
+    genBtnText.innerText = `Pass 2/2 (${successfulModel}): Building Cumulative Journey DAG...`;
     const stage2Prompt = `You are Argus: SystemSleuth's Principal Distributed Systems Architect.
-Synthesize a formal Argus Expected Behavioral Graph (expected_graph.json) that directly implements this distributed systems blueprint:
+Synthesize a formal Argus CUMULATIVE SESSION JOURNEY DAG (expected_graph.json) that directly implements this session analysis blueprint:
 
-Blueprint:
+Session Blueprint (from Pass 1):
 ${JSON.stringify(stage1Result, null, 2)}
 
-Webpage Context:
+Page Context:
 URL: ${evidence.url}
 Title: ${evidence.title}
 
 Graph Requirements:
-1. Model full-stack sequence: "n_session_start" ➔ "n_page_view" ➔ user action ➔ pre-flight API call ➔ primary execution API call.
-2. Every API step in the pipeline must be an API_CALL node with its realistic endpoint.
-3. Every API call must have explicit branches for Happy Path (200 OK) and distinct failure paths for the defined edge cases (401/403, 429, 504/Timeout, 422/Error).
-4. Annotate edges with "path": "happy_path", "auth_failure_path", "rate_limit_path", "timeout_failure_path", etc.
+1. Build a CHRONOLOGICAL DAG: each observed step becomes one node in sequential order (PageView → UserAction → ApiCall → ApiResult → ...).
+2. Happy path = the chain of steps that completed successfully (200 OK, no abort).
+3. Fault branches = nodes where faults occurred (aborted, timeout, 4xx/5xx) diverging from the happy path at that exact step.
+4. Node IDs must be unique and descriptive (e.g., "n_page_github_profile", "n_click_packages", "n_api_get_packages", "n_result_200_packages").
+5. Each fault terminal node must have: isTerminal:true, isKnownFailureMode:true, and a plain-English description of why it failed.
+6. Annotate edges with "path": "happy_path", "abort_path", "auth_failure_path", "timeout_path", etc.
+7. The graphType MUST be "CUMULATIVE_SESSION_JOURNEY".
 
 Return strictly JSON matching the Argus 1.0 schema:
 {
   "schemaVersion": "1.0",
   "appVersion": "1.0.0",
   "platform": "web",
-  "description": "Expected behavioral contract synthesized for ${evidence.title}",
+  "graphType": "CUMULATIVE_SESSION_JOURNEY",
+  "description": "Cumulative session journey DAG for ${evidence.title}",
   "workflows": [
     {
-      "id": "wf_${stage1Result.featureId || 'feature'}",
-      "name": "${stage1Result.featureName || 'FeatureWorkflow'}",
-      "description": "${stage1Result.featureDescription || 'Primary workflow'}",
+      "id": "wf_session_journey",
+      "name": "${stage1Result.journeyTitle || 'Session Journey'}",
+      "description": "${stage1Result.journeyDescription || 'Full cumulative session journey'}",
       "entryNode": "n_session_start",
-      "terminalNodes": ["n_terminal_success", "n_terminal_auth_fail", "n_terminal_rate_limit", "n_terminal_timeout", "n_terminal_error"],
-      "nodes": [...],
-      "edges": [...],
+      "terminalNodes": ["n_terminal_success", "n_terminal_abort", "n_terminal_auth_fail", "n_terminal_timeout", "n_terminal_error"],
+      "nodes": [
+        { "id": "n_session_start", "type": "SESSION_START", "label": "SessionStart", "isTerminal": false },
+        { "id": "n_page_view_1", "type": "PAGE_VIEW", "label": "PageView:/path", "isTerminal": false },
+        { "id": "n_fault_abort", "type": "FAULT_TERMINAL", "label": "ABORTED: Request cancelled", "isTerminal": true, "isKnownFailureMode": true, "failureDescription": "Plain-English: user navigated away before request completed" }
+      ],
+      "edges": [
+        { "from": "n_session_start", "to": "n_page_view_1", "path": "happy_path" },
+        { "from": "n_api_call_1", "to": "n_fault_abort", "path": "abort_path" }
+      ],
       "paths": {
-        "happy_path": { "description": "Successful execution", "sequence": [...] },
-        "auth_failure_path": { "description": "Auth or seat entitlement rejected", "divergesFromHappyPathAt": "...", "sequence": [...] },
-        "rate_limit_path": { "description": "Rate limit quota exhausted", "divergesFromHappyPathAt": "...", "sequence": [...] },
-        "timeout_failure_path": { "description": "Gateway or upstream inference timeout", "divergesFromHappyPathAt": "...", "sequence": [...] }
+        "happy_path": { "description": "Successful full session", "sequence": ["n_session_start", "n_page_view_1"] },
+        "abort_path": { "description": "Request aborted mid-navigation", "divergesFromHappyPathAt": "n_api_call_1", "sequence": ["n_session_start", "n_api_call_1", "n_fault_abort"] }
       }
     }
   ]
@@ -1003,25 +1019,27 @@ Return strictly JSON matching the Argus 1.0 schema:
     finalGraph = await callGeminiGenerate(successfulModel, stage2Prompt, apiKey);
 
   } else {
-    genBtnText.innerText = 'Consulting Gemini Systems Architect...';
-    const singlePrompt = `You are Argus: SystemSleuth's Principal Distributed Systems SRE and Behavioral Architect.
-Analyze the following webpage evidence and synthesize a realistic, production-grade Expected Behavioral Graph.
+    genBtnText.innerText = 'Consulting Gemini Journey Analyst...';
+    const singlePrompt = `You are Argus: SystemSleuth's Principal Distributed Systems SRE and Session Analyst.
+Analyze the following session trace and page evidence and synthesize a CUMULATIVE SESSION JOURNEY DAG — a chronological graph of every real action and its causal API chain.
 
-Webpage Evidence:
+${tracePromptSection}
+
+Page Evidence (secondary — use to fill gaps):
 URL: ${evidence.url}
 Title: ${evidence.title}
 Headings: ${JSON.stringify(evidence.headings || [])}
 Buttons: ${JSON.stringify(evidence.buttons || [])}
 Forms: ${JSON.stringify(evidence.forms || [])}
 Discovered Script Endpoints: ${JSON.stringify(evidence.scriptEndpoints || [])}
-${tracePromptSection}
 
 Rules:
-1. In-depth full-stack modeling with realistic endpoints (not "${evidence.url}"). Ground the workflow in actual observed endpoints from the runtime trace if provided.
-2. Include at least 3 distinct production edge cases: 401/403 Auth, 429 RateLimit, 504 Gateway Timeout.
-3. Model distinct failure paths in "paths": "happy_path", "auth_failure_path", "rate_limit_path", "timeout_failure_path".
+1. The SESSION TRACE is the PRIMARY source. Every PAGE_VIEW, USER_ACTION, API_CALL, and API_RESULT observed becomes a sequential node in the journey DAG.
+2. Fault nodes (aborted, timeout, 4xx/5xx) branch off the happy path at exactly the step where they occurred.
+3. Each fault terminal node must have isTerminal:true, isKnownFailureMode:true, and a plain-English failureDescription.
+4. Set graphType: "CUMULATIVE_SESSION_JOURNEY" in the root object.
 
-Return strictly valid JSON matching Argus schema.`;
+Return strictly valid JSON matching Argus 1.0 schema with graphType "CUMULATIVE_SESSION_JOURNEY".`;
 
     for (const model of modelsToTry) {
       try {
@@ -1042,7 +1060,215 @@ Return strictly valid JSON matching Argus schema.`;
 }
 
 // -------------------------------------------------------------
-// 7. Built-in Offline Heuristic Synthesizer (Edge-Case Ready & Trace Grounded)
+// 7a. Cumulative Session Journey Builder (Approach B — Trace-First DAG)
+// Builds the graph directly from real intercepted session events,
+// modeling the actual chronological journey: every page, click, API call
+// and divergence. This is what gets used for diagnosis.
+// -------------------------------------------------------------
+function buildJourneyGraph(evidence, trace = []) {
+  const parsedUrl = safeParseUrl(evidence.url || 'https://example.com');
+  const cleanTitle = (evidence.title || 'WebApp').replace(/[^a-zA-Z0-9]/g, '').slice(0, 16) || 'web';
+
+  const NOISE_PATTERNS = ['ddforward', '/rum?', '_dd.api', 'analytics', 'telemetry', 'beacon', 'tracking', 'ping'];
+  const isNoise = (url = '') => NOISE_PATTERNS.some(p => url.includes(p));
+
+  // Filter & deduplicate meaningful events from the trace
+  const meanEvents = (trace || []).filter(e => {
+    if (e.type === 'API_CALL' || e.type === 'API_RESULT') {
+      return !isNoise(e.url || '');
+    }
+    return e.type === 'PAGE_VIEW' || e.type === 'USER_ACTION' || e.type === 'ERROR';
+  });
+
+  // If no meaningful events, fall back to heuristic synthesizer
+  if (meanEvents.length === 0) {
+    return synthesizeHeuristicGraph(evidence, trace);
+  }
+
+  const nodes = [];
+  const edges = [];
+  const happySeq = ['n_session_start'];
+
+  // Session start node
+  nodes.push({
+    id: 'n_session_start',
+    type: 'SESSION_START',
+    label: 'SessionStart',
+    expectedOutcome: 'SUCCESS',
+    description: `Session started on ${parsedUrl.origin}. Argus flight recorder active.`
+  });
+
+  const seen = new Set();
+  let prevId = 'n_session_start';
+  let nodeIdx = 0;
+
+  meanEvents.forEach(evt => {
+    nodeIdx++;
+    const safeKey = String(evt.label || evt.url || evt.type || nodeIdx).replace(/[^a-zA-Z0-9_]/g, '_').slice(0, 40);
+    const nodeId = `n_${nodeIdx}_${safeKey}`.slice(0, 60);
+
+    if (evt.type === 'PAGE_VIEW') {
+      const pathSlug = (evt.pathname || evt.url || '/').replace(/[^a-zA-Z0-9]/g, '_').slice(0, 30);
+      const uid = `n_page_${pathSlug}`;
+      if (!seen.has(uid)) {
+        seen.add(uid);
+        nodes.push({
+          id: uid,
+          type: 'PAGE_VIEW',
+          label: `PageView:${evt.pathname || evt.url || '/'}`,
+          expectedOutcome: 'SUCCESS',
+          description: `User navigated to ${evt.pathname || evt.url}. Page rendered.`,
+          observedAt: evt.timestamp
+        });
+        edges.push({ from: prevId, to: uid, label: 'navigated_to', path: 'happy_path' });
+        happySeq.push(uid);
+        prevId = uid;
+      }
+
+    } else if (evt.type === 'USER_ACTION') {
+      nodes.push({
+        id: nodeId,
+        type: 'USER_ACTION',
+        label: evt.label || `Click:${nodeIdx}`,
+        expectedOutcome: 'SUCCESS',
+        description: `User performed action: ${evt.label}.`,
+        observedAt: evt.timestamp
+      });
+      edges.push({ from: prevId, to: nodeId, label: 'user_triggered', path: 'happy_path' });
+      happySeq.push(nodeId);
+      prevId = nodeId;
+
+    } else if (evt.type === 'API_CALL') {
+      nodes.push({
+        id: nodeId,
+        type: 'API_CALL',
+        label: `ApiCall:${evt.method || 'GET'} ${evt.url || ''}`,
+        expectedOutcome: 'PENDING',
+        description: `Network request dispatched: ${evt.method || 'GET'} ${evt.url}.`,
+        constraints: { timeoutThresholdMs: 8000 },
+        observedAt: evt.timestamp
+      });
+      edges.push({ from: prevId, to: nodeId, label: 'api_initiated', path: 'happy_path' });
+      happySeq.push(nodeId);
+      prevId = nodeId;
+
+    } else if (evt.type === 'API_RESULT') {
+      const isAborted = (evt.error || '').toLowerCase().includes('abort') || (evt.error || '').toLowerCase().includes('signal');
+      const isTimeout = evt.outcome === 'TIMEOUT' || isAborted;
+      const isFailure = evt.outcome === 'FAILURE' || (evt.status >= 400 && !isTimeout);
+      const isSuccess = !isTimeout && !isFailure;
+
+      let outcomeLabel, expectedOutcome, path;
+      if (isTimeout || isAborted) {
+        outcomeLabel = isAborted ? 'ABORTED' : 'TIMEOUT';
+        expectedOutcome = 'TIMEOUT';
+        path = 'timeout_path';
+      } else if (isFailure) {
+        outcomeLabel = `${evt.status || 'ERR'}`;
+        expectedOutcome = 'FAILURE';
+        path = 'failure_path';
+      } else {
+        outcomeLabel = `${evt.status || 200}`;
+        expectedOutcome = 'SUCCESS';
+        path = 'happy_path';
+      }
+
+      const dur = evt.durationMs ? `${evt.durationMs}ms` : '';
+      const label = `ApiResult:${outcomeLabel}:${evt.url || ''}${dur ? ` (${dur})` : ''}`;
+
+      nodes.push({
+        id: nodeId,
+        type: 'API_RESULT',
+        label,
+        expectedOutcome,
+        description: `Response: ${evt.method || 'GET'} ${evt.url} → ${outcomeLabel}${dur ? ` in ${dur}` : ''}.${isAborted ? ' [Browser aborted prior request due to rapid re-navigation]' : ''}`,
+        isKnownFailureMode: !isSuccess,
+        observedAt: evt.timestamp,
+        status: evt.status,
+        durationMs: evt.durationMs
+      });
+      edges.push({ from: prevId, to: nodeId, label: 'api_responded', path });
+
+      if (isSuccess) {
+        happySeq.push(nodeId);
+        prevId = nodeId;
+      } else {
+        // Diverged — branch off from happy path
+        const terminalId = `n_fault_${nodeIdx}`;
+        nodes.push({
+          id: terminalId,
+          type: 'STATE_CHANGE',
+          label: isAborted ? 'StateChange:RequestAborted' : (isTimeout ? 'StateChange:TimeoutRetry' : `StateChange:ErrorBanner:${evt.status}`),
+          expectedOutcome,
+          description: isAborted
+            ? 'Browser router aborted the in-flight request and dispatched a new one. Likely caused by rapid user re-navigation (double-click or fast tab switch).'
+            : `UI entered error/retry state after ${outcomeLabel}. User-visible disruption occurred.`,
+          isTerminal: true,
+          isKnownFailureMode: true,
+          divergedFromHappyPathAt: prevId
+        });
+        edges.push({ from: nodeId, to: terminalId, label: 'state_changed', path });
+        // prevId remains unchanged so the next event continues from before the fault
+      }
+
+    } else if (evt.type === 'ERROR') {
+      nodes.push({
+        id: nodeId,
+        type: 'STATE_CHANGE',
+        label: `Error:${(evt.message || 'ScriptError').slice(0, 30)}`,
+        expectedOutcome: 'FAILURE',
+        description: `Unhandled JavaScript error: ${evt.message}`,
+        isTerminal: true,
+        isKnownFailureMode: true,
+        observedAt: evt.timestamp
+      });
+      edges.push({ from: prevId, to: nodeId, label: 'error_thrown', path: 'error_path' });
+    }
+  });
+
+  // Final success terminal (if journey ended without error)
+  const lastNodeIsNonTerminal = nodes.length > 0 && !nodes[nodes.length - 1].isTerminal;
+  if (lastNodeIsNonTerminal) {
+    nodes.push({
+      id: 'n_terminal_session_end',
+      type: 'STATE_CHANGE',
+      label: 'StateChange:SessionOngoing',
+      expectedOutcome: 'SUCCESS',
+      description: 'Session is active and healthy. No divergence detected at this point in the journey.',
+      isTerminal: true
+    });
+    edges.push({ from: prevId, to: 'n_terminal_session_end', label: 'session_active', path: 'happy_path' });
+    happySeq.push('n_terminal_session_end');
+  }
+
+  return {
+    schemaVersion: '1.0',
+    appVersion: '1.0.0',
+    platform: 'web',
+    graphType: 'CUMULATIVE_SESSION_JOURNEY',
+    description: `Live cumulative session journey for ${evidence.title || parsedUrl.hostname}. Auto-built from ${meanEvents.length} observed events.`,
+    generatedAt: new Date().toISOString(),
+    workflows: [{
+      id: `wf_journey_${cleanTitle.toLowerCase()}`,
+      name: `SessionJourney:${cleanTitle}`,
+      description: `Observed user journey across ${meanEvents.filter(e => e.type === 'PAGE_VIEW').length} pages and ${meanEvents.filter(e => e.type === 'USER_ACTION').length} actions.`,
+      entryNode: 'n_session_start',
+      terminalNodes: nodes.filter(n => n.isTerminal).map(n => n.id),
+      nodes,
+      edges,
+      paths: {
+        happy_path: {
+          description: 'Observed successful path through session',
+          sequence: happySeq
+        }
+      }
+    }]
+  };
+}
+
+// -------------------------------------------------------------
+// 7b. Built-in Offline Heuristic Synthesizer (Fallback — Feature Contract)
+// Used when flight trace is empty or as fallback for Gemini grounding.
 // -------------------------------------------------------------
 function synthesizeHeuristicGraph(evidence, trace = []) {
   const parsedUrl = safeParseUrl(evidence.url || 'https://example.com');
@@ -1061,7 +1287,7 @@ function synthesizeHeuristicGraph(evidence, trace = []) {
   let authEndpoint = `/api/v1/auth/entitlement`;
   let execEndpoint = `/api/v1/action/execute`;
 
-  // Dynamic Runtime Grounding from Real Trace
+  // Ground in real trace if available
   const realEndpoints = (trace || [])
     .filter(e => (e.type === 'API_CALL' || e.type === 'API_RESULT') && e.url && !e.url.includes('/rum') && !e.url.includes('analytics') && !e.url.includes('telemetry'))
     .map(e => {
