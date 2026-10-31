@@ -30,6 +30,6 @@
     <!-- Prompts & Placeholders -->
     <string name="hint_complaint">Describe what went wrong (e.g. \"Tapped Checkout, loading spinner spun forever and then nothing happened\")…</string>
     <string name="hint_api_key">Gemini API Key (optional — enables deep AI reasoning)</string>
-    <string name="no_events_yet">No session events captured yet.\n\n1. Ensure UI & Network monitors are active.\n2. Open any app and perform your actions.\n3. Return here to inspect the trace or run a self-diagnosis.</string>
+    <string name="no_events_yet">No session events captured yet.\n\n1. Ensure UI &amp; Network monitors are active.\n2. Open any app and perform your actions.\n3. Return here to inspect the trace or run a self-diagnosis.</string>
     <string name="diagnosis_placeholder">Your AI behavioral diagnosis report will appear here.\n\nDescribe your issue above and tap \"Diagnose My Problem\" to generate a root-cause analysis.</string>
 </resources>
