@@ -63,8 +63,10 @@
       <!-- Tabs -->
       <div class="tabs">
         <button class="tab-btn active" data-tab="visualizer">📊 Visualizer</button>
+        <button class="tab-btn" data-tab="diagnose">🔬 Self-Diagnosis</button>
+        <button class="tab-btn" data-tab="trace">📡 Flight Trace (<span id="traceCountBadge">0</span>)</button>
         <button class="tab-btn" data-tab="json">📄 JSON Spec</button>
-        <button class="tab-btn" data-tab="evidence">🔍 Discovered Evidence</button>
+        <button class="tab-btn" data-tab="evidence">🔍 Evidence</button>
       </div>
 
       <!-- Tab Content: Visualizer -->
@@ -86,6 +88,51 @@
         <div class="node-info-panel" id="nodeInfoPanel">
           <strong id="nodeInfoTitle">Click any node to inspect details</strong>
           <p id="nodeInfoDesc" class="node-info-desc">Nodes represent discrete states, user actions, and network boundaries.</p>
+        </div>
+      </div>
+
+      <!-- Tab Content: Self-Diagnosis -->
+      <div class="tab-content hidden" id="tabDiagnose">
+        <div class="card diagnose-card">
+          <label for="userProblemInput" class="input-label" style="font-weight: 700; color: #f1f5f9; display: block; margin-bottom: 6px;">
+            Explain what went wrong in your own words:
+          </label>
+          <textarea id="userProblemInput" class="problem-textarea" rows="3" placeholder="e.g. I clicked 'Pay Now', but the button stayed disabled and no confirmation ever appeared..."></textarea>
+          <button id="runDiagnoseBtn" class="btn btn-primary" style="margin-top: 8px; width: 100%;">
+            <span class="btn-spinner" id="diagSpinner"></span>
+            <span id="diagBtnText">⚡ Diagnose My Problem</span>
+          </button>
+        </div>
+
+        <div id="diagnosisReportCard" class="card diagnosis-report hidden">
+          <div class="diag-header">
+            <span class="diag-badge" id="diagStatusBadge">DIVERGENCE DETECTED</span>
+            <span class="diag-time" id="diagTimestamp">Just now</span>
+          </div>
+          <div class="diag-section">
+            <strong class="diag-title">👤 What Happened (Plain-English):</strong>
+            <p id="diagUserExplanation" class="diag-text"></p>
+          </div>
+          <div class="diag-section">
+            <strong class="diag-title">🛠️ Root Cause (Technical Fault):</strong>
+            <p id="diagDevExplanation" class="diag-text code-font"></p>
+          </div>
+          <div class="diag-section">
+            <strong class="diag-title">💡 Recommended Next Steps:</strong>
+            <ul id="diagRemediationList" class="diag-list"></ul>
+          </div>
+          <button id="copyReportBtn" class="btn btn-secondary" style="margin-top: 10px; width: 100%;">📋 Copy Incident Report for Engineering</button>
+        </div>
+      </div>
+
+      <!-- Tab Content: Live Flight Trace -->
+      <div class="tab-content hidden" id="tabTrace">
+        <div class="trace-header">
+          <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">Rolling Flight Recorder Buffer (Last 50 Events)</span>
+          <button id="refreshTraceBtn" class="btn-refresh" title="Refresh trace">🔄 Refresh</button>
+        </div>
+        <div class="trace-stream" id="flightTraceStream">
+          <div class="trace-empty">No events recorded yet. Interact with the webpage to capture clicks and network calls.</div>
         </div>
       </div>
 

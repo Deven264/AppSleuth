@@ -22,10 +22,12 @@ Instead of manually crafting JSON or running CLI crawlers, the **Argus Browser E
 
 | Feature | Description |
 |---|---|
-| **Zero-CLI Workflow** | No Node.js or Python CLI needed. Point-and-click directly on the live website. |
-| **Hybrid AI Engine** | Instant offline generation by default; switches to Gemini 1.5 Flash when an API key is supplied. |
-| **Path Color Coding** | 🟢 **Happy Path** (Success), 🟡 **Timeout Failure** (Degradation), 🔴 **Network/CORS Error** (Blockers). |
-| **Interactive Inspector** | Click any state or API node on the canvas to inspect timeouts, expected outcomes, and known root causes. |
+| **Zero-CLI Workflow** | No Node.js or Python CLI needed. Diagnose problems directly on the live website. |
+| **📡 Rolling Flight Recorder** | In-page circular in-memory buffer (`recorder.js`) that captures clicks, native `fetch`, `XHR`, latencies, and HTTP status codes before you even open the extension. |
+| **🔬 Live Self-Diagnosis** | When a problem happens, open the extension, type what went wrong, and get an instant plain-English answer + technical root cause. |
+| **Canvas Red Divergence** | Pinpoints the exact failure node on the interactive Canvas visualizer in **pulsing red**! |
+| **Hybrid AI Engine** | Instant offline generation by default; switches to Gemini Flash when an API key is supplied. |
+| **1-Click Engineering Export** | Generates a senior-engineer-ready incident report formatted for Jira, Slack, or GitHub issues. |
 | **100% Argus Compatible** | Output directly matches the schema required by `@argus/web-sdk` and `tools/diagnostic-engine/`. |
 
 ---

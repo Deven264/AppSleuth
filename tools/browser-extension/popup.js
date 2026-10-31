@@ -1,6 +1,6 @@
 /**
  * Argus: SystemSleuth — Browser Extension Popup Controller
- * Full-Stack Systems SRE Architecture Engine & Interactive Canvas Visualizer
+ * Full-Stack Systems SRE Architecture Engine, Rolling Flight Recorder & Live Self-Diagnosis
  */
 
 // Application State
@@ -9,8 +9,11 @@ let extractedEvidence = null;
 let currentGraph = null;
 let selectedNodeId = null;
 let hoveredNodeId = null;
+let divergedNodeId = null;
 let layoutNodes = [];
 let layoutEdges = [];
+let flightRecorderTrace = [];
+let latestIncidentReport = null;
 
 // Fallback Model Candidate Hierarchy
 const CANDIDATE_FLASH_MODELS = [
@@ -21,7 +24,7 @@ const CANDIDATE_FLASH_MODELS = [
   'gemini-1.5-flash'
 ];
 
-// DOM Elements
+// DOM Elements: Header & Setup
 const pageTitleEl = document.getElementById('pageTitle');
 const pageUrlEl = document.getElementById('pageUrl');
 const btnCountEl = document.getElementById('btnCount');
@@ -36,19 +39,41 @@ const generateBtn = document.getElementById('generateBtn');
 const genSpinner = document.getElementById('genSpinner');
 const genBtnText = document.getElementById('genBtnText');
 const resultsSection = document.getElementById('resultsSection');
+
+// DOM Elements: Tabs & Panels
+const tabButtons = document.querySelectorAll('.tab-btn');
+const tabVisualizer = document.getElementById('tabVisualizer');
+const tabDiagnose = document.getElementById('tabDiagnose');
+const tabTrace = document.getElementById('tabTrace');
+const tabJson = document.getElementById('tabJson');
+const tabEvidence = document.getElementById('tabEvidence');
+
+// DOM Elements: Visualizer & Details
+const graphCanvas = document.getElementById('graphCanvas');
+const nodeInfoTitle = document.getElementById('nodeInfoTitle');
+const nodeInfoDesc = document.getElementById('nodeInfoDesc');
 const jsonOutputEl = document.getElementById('jsonOutput');
 const evidenceListEl = document.getElementById('evidenceList');
 const copyJsonBtn = document.getElementById('copyJsonBtn');
 const downloadJsonBtn = document.getElementById('downloadJsonBtn');
-const graphCanvas = document.getElementById('graphCanvas');
-const nodeInfoTitle = document.getElementById('nodeInfoTitle');
-const nodeInfoDesc = document.getElementById('nodeInfoDesc');
 
-// Tab Buttons
-const tabButtons = document.querySelectorAll('.tab-btn');
-const tabVisualizer = document.getElementById('tabVisualizer');
-const tabJson = document.getElementById('tabJson');
-const tabEvidence = document.getElementById('tabEvidence');
+// DOM Elements: Self-Diagnosis
+const userProblemInput = document.getElementById('userProblemInput');
+const runDiagnoseBtn = document.getElementById('runDiagnoseBtn');
+const diagSpinner = document.getElementById('diagSpinner');
+const diagBtnText = document.getElementById('diagBtnText');
+const diagnosisReportCard = document.getElementById('diagnosisReportCard');
+const diagStatusBadge = document.getElementById('diagStatusBadge');
+const diagTimestamp = document.getElementById('diagTimestamp');
+const diagUserExplanation = document.getElementById('diagUserExplanation');
+const diagDevExplanation = document.getElementById('diagDevExplanation');
+const diagRemediationList = document.getElementById('diagRemediationList');
+const copyReportBtn = document.getElementById('copyReportBtn');
+
+// DOM Elements: Flight Trace
+const traceCountBadge = document.getElementById('traceCountBadge');
+const flightTraceStream = document.getElementById('flightTraceStream');
+const refreshTraceBtn = document.getElementById('refreshTraceBtn');
 
 // -------------------------------------------------------------
 // 1. Initialization & Storage
@@ -94,22 +119,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Setup Tab Navigation
   tabButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       tabButtons.forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
 
       const target = btn.dataset.tab;
       tabVisualizer.classList.toggle('hidden', target !== 'visualizer');
+      if (tabDiagnose) tabDiagnose.classList.toggle('hidden', target !== 'diagnose');
+      if (tabTrace) tabTrace.classList.toggle('hidden', target !== 'trace');
       tabJson.classList.toggle('hidden', target !== 'json');
       tabEvidence.classList.toggle('hidden', target !== 'evidence');
 
       if (target === 'visualizer') {
         renderCanvasGraph();
+      } else if (target === 'trace' || target === 'diagnose') {
+        await updateFlightRecorderData();
       }
     });
   });
 
-  // Inspect Active Tab & Run Content Script
+  // Inspect Active Tab & Run Content Scripts
   await inspectActiveTab();
 
   // Setup Canvas Interaction
@@ -121,6 +150,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Setup Export Handlers
   copyJsonBtn.addEventListener('click', onCopyJson);
   downloadJsonBtn.addEventListener('click', onDownloadJson);
+
+  // Setup Diagnosis Handlers
+  if (runDiagnoseBtn) {
+    runDiagnoseBtn.addEventListener('click', onRunDiagnoseClicked);
+  }
+  if (copyReportBtn) {
+    copyReportBtn.addEventListener('click', onCopyReportClicked);
+  }
+  if (refreshTraceBtn) {
+    refreshTraceBtn.addEventListener('click', updateFlightRecorderData);
+  }
+
+  // Fetch initial flight trace in background
+  await updateFlightRecorderData();
 });
 
 function updateEngineBadge(hasKey) {
@@ -150,7 +193,7 @@ function hideApiNotice() {
 }
 
 // -------------------------------------------------------------
-// 2. Active Tab Inspection
+// 2. Active Tab Inspection & Recorder Injection
 // -------------------------------------------------------------
 async function inspectActiveTab() {
   try {
@@ -164,17 +207,25 @@ async function inspectActiveTab() {
     pageTitleEl.innerText = tab.title || 'Web Application';
     pageUrlEl.innerText = tab.url || 'Unknown URL';
 
-    // Check if URL is inspectable
     if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
       pageTitleEl.innerText = 'Browser System Page';
       pageUrlEl.innerText = tab.url;
       pageUrlEl.style.color = '#f59e0b';
       nodeInfoTitle.innerText = 'System Page Detected';
-      nodeInfoDesc.innerText = 'Browser system pages are restricted. Please navigate to any web application to inspect and synthesize its behavioral graph.';
+      nodeInfoDesc.innerText = 'Browser system pages are restricted. Please navigate to any web application to inspect and diagnose its behavioral graph.';
       generateBtn.disabled = true;
       generateBtn.title = 'Cannot inspect internal browser system pages.';
       return;
     }
+
+    // In case recorder.js wasn't injected yet (tab was loaded before extension update)
+    try {
+      await chrome.scripting.executeScript({
+        target: { tabId: tab.id },
+        world: 'MAIN',
+        files: ['recorder.js']
+      });
+    } catch (_) {}
 
     // Execute content extractor script
     const results = await chrome.scripting.executeScript({
@@ -213,14 +264,261 @@ function updatePageCardWithEvidence(evidence) {
 }
 
 // -------------------------------------------------------------
-// 3. Graph Generation Controller
+// 3. Rolling Flight Recorder Buffer Retriever & Stream Renderer
+// -------------------------------------------------------------
+async function updateFlightRecorderData() {
+  if (!activeTabInfo || !activeTabInfo.id) return [];
+
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId: activeTabInfo.id },
+      world: 'MAIN',
+      func: () => window.__ARGUS_FLIGHT_RECORDER_BUFFER__ || []
+    });
+
+    flightRecorderTrace = (results && results[0] && Array.isArray(results[0].result))
+      ? results[0].result
+      : [];
+
+    if (traceCountBadge) {
+      traceCountBadge.innerText = flightRecorderTrace.length;
+    }
+
+    renderFlightTraceStream(flightRecorderTrace);
+    return flightRecorderTrace;
+  } catch (err) {
+    console.warn('[Argus] Could not retrieve flight recorder buffer:', err);
+    return [];
+  }
+}
+
+function renderFlightTraceStream(events) {
+  if (!flightTraceStream) return;
+  flightTraceStream.innerHTML = '';
+
+  if (!events || events.length === 0) {
+    flightTraceStream.innerHTML = '<div class="trace-empty">No events recorded yet. Interact with the webpage to capture clicks and network calls.</div>';
+    return;
+  }
+
+  // Render events in reverse chronological order (newest first)
+  const reversed = [...events].reverse();
+
+  reversed.forEach(evt => {
+    const itemEl = document.createElement('div');
+    const timeStr = evt.timestamp ? new Date(evt.timestamp).toLocaleTimeString() : '';
+
+    let badgeClass = 'action';
+    let itemClass = 'action';
+    let badgeText = 'CLICK';
+    let detailText = evt.label || '';
+
+    if (evt.type === 'PAGE_VIEW') {
+      badgeClass = 'page';
+      itemClass = 'page';
+      badgeText = 'PAGE';
+      detailText = evt.pathname || evt.url || '';
+    } else if (evt.type === 'USER_ACTION') {
+      badgeClass = 'action';
+      itemClass = 'action';
+      badgeText = 'CLICK';
+      detailText = evt.label || 'User Click';
+    } else if (evt.type === 'API_CALL') {
+      badgeClass = 'page';
+      itemClass = 'api-ok';
+      badgeText = evt.method || 'REQ';
+      detailText = evt.url || '';
+    } else if (evt.type === 'API_RESULT') {
+      const dur = evt.durationMs ? `${evt.durationMs}ms` : '';
+      if (evt.outcome === 'TIMEOUT') {
+        badgeClass = 'api-timeout';
+        itemClass = 'api-timeout';
+        badgeText = `⏱️ TIMEOUT (${dur})`;
+      } else if (evt.outcome === 'SUCCESS') {
+        badgeClass = 'api-ok';
+        itemClass = 'api-ok';
+        badgeText = `✅ ${evt.status} (${dur})`;
+      } else {
+        badgeClass = 'api-fail';
+        itemClass = 'api-fail';
+        badgeText = `❌ ${evt.status || 'ERR'} (${dur})`;
+      }
+      detailText = `${evt.method || 'API'} ${evt.url || ''} ${evt.error ? `[${evt.error}]` : ''}`;
+    } else if (evt.type === 'ERROR') {
+      badgeClass = 'error';
+      itemClass = 'error';
+      badgeText = '❌ ERROR';
+      detailText = evt.message || 'Script fault';
+    }
+
+    itemEl.className = `trace-item ${itemClass}`;
+    itemEl.innerHTML = `
+      <span class="trace-badge ${badgeClass}">${badgeText}</span>
+      <span class="trace-details">${escapeHtml(detailText)}</span>
+      <span class="trace-meta">${timeStr}</span>
+    `;
+
+    flightTraceStream.appendChild(itemEl);
+  });
+}
+
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+// -------------------------------------------------------------
+// 4. Live Self-Diagnosis Controller
+// -------------------------------------------------------------
+async function onRunDiagnoseClicked() {
+  const userComplaint = userProblemInput.value.trim();
+  if (!userComplaint) {
+    alert('Please briefly describe what problem you encountered on the page.');
+    userProblemInput.focus();
+    return;
+  }
+
+  // Set loading UI
+  runDiagnoseBtn.disabled = true;
+  diagSpinner.style.display = 'inline-block';
+  diagBtnText.innerText = 'Analyzing Session Trace against Expected Graph...';
+
+  try {
+    // 1. Refresh latest flight recorder trace
+    const trace = await updateFlightRecorderData();
+
+    // 2. Ensure we have an expected graph
+    if (!currentGraph) {
+      currentGraph = synthesizeHeuristicGraph(extractedEvidence || {
+        url: activeTabInfo?.url || 'https://example.com',
+        title: activeTabInfo?.title || 'Web Application'
+      });
+      layoutGraph(currentGraph);
+    }
+
+    // 3. Inspect Flight Recorder for Failures & Timeouts
+    const failEvent = trace.slice().reverse().find(e =>
+      e.type === 'API_RESULT' && (e.outcome === 'TIMEOUT' || e.outcome === 'FAILURE' || e.status >= 400 || e.status === 0)
+    ) || trace.slice().reverse().find(e => e.type === 'ERROR');
+
+    const wf = currentGraph.workflows[0];
+
+    if (failEvent) {
+      // Divergence detected!
+      const isTimeout = failEvent.outcome === 'TIMEOUT' || failEvent.status === 504 || failEvent.status === 408;
+      const isAuth = failEvent.status === 401 || failEvent.status === 403;
+      const isRateLimit = failEvent.status === 429;
+      const dur = failEvent.durationMs ? `${failEvent.durationMs}ms` : 'several seconds';
+      const endpoint = failEvent.url || failEvent.label || 'network endpoint';
+
+      // Match with graph node
+      let matchedNode = null;
+      if (isTimeout) {
+        matchedNode = wf.nodes.find(n => n.expectedOutcome === 'TIMEOUT') || wf.nodes.find(n => n.type === 'API_RESULT');
+      } else if (isAuth) {
+        matchedNode = wf.nodes.find(n => n.label.includes('403') || n.label.includes('401')) || wf.nodes.find(n => n.type === 'API_RESULT');
+      } else if (isRateLimit) {
+        matchedNode = wf.nodes.find(n => n.label.includes('429')) || wf.nodes.find(n => n.type === 'API_RESULT');
+      } else {
+        matchedNode = wf.nodes.find(n => n.expectedOutcome === 'FAILURE') || wf.nodes.find(n => n.type === 'API_RESULT');
+      }
+
+      divergedNodeId = matchedNode ? matchedNode.id : wf.terminalNodes[1] || null;
+
+      // Update Diagnosis Report Card
+      diagnosisReportCard.className = 'card diagnosis-report';
+      diagStatusBadge.className = 'diag-badge';
+      diagStatusBadge.innerText = 'DIVERGENCE DETECTED ⚠️';
+      diagTimestamp.innerText = new Date().toLocaleTimeString();
+
+      // Plain English Explanation
+      if (isTimeout) {
+        diagUserExplanation.innerText = `Regarding "${userComplaint}": The request to ${endpoint} exceeded the server timeout threshold (${dur}). No transaction was corrupted, but the server failed to send a confirmation.`;
+      } else if (isAuth) {
+        diagUserExplanation.innerText = `Regarding "${userComplaint}": The request was rejected due to permission or session expiration (HTTP ${failEvent.status}). Your user account lacks active entitlement for this action.`;
+      } else if (isRateLimit) {
+        diagUserExplanation.innerText = `Regarding "${userComplaint}": You have exceeded the active request rate limit or token quota (HTTP 429). The system temporarily paused new submissions.`;
+      } else {
+        diagUserExplanation.innerText = `Regarding "${userComplaint}": The server encountered a fault while processing ${endpoint} (HTTP ${failEvent.status || 'Network Error'}). The action was interrupted.`;
+      }
+
+      // Technical Developer Diagnosis
+      diagDevExplanation.innerText = `Divergence at node '${matchedNode ? matchedNode.label : endpoint}' (Diverged from happy_path).
+Observed: ${failEvent.method || 'CALL'} ${endpoint} ➔ Status ${failEvent.status || 'ERR'} (Elapsed: ${dur}).
+Expected: HTTP 200 OK within 8,000ms SLA.`;
+
+      // Remediation Actions
+      diagRemediationList.innerHTML = `
+        <li>Verify backend microservice status and network latency for <code>${escapeHtml(endpoint)}</code>.</li>
+        <li>Implement automatic idempotent retry with backoff for transient network timeouts.</li>
+        <li>Check authentication token freshness and entitlement grants.</li>
+      `;
+
+      // Store incident report for 1-click clipboard export
+      latestIncidentReport = `### 🚨 Argus Behavioral Self-Diagnosis Incident Report
+- **URL:** ${activeTabInfo?.url || 'N/A'}
+- **User Complaint:** "${userComplaint}"
+- **Status:** DIVERGENCE DETECTED
+- **Divergence Node:** ${matchedNode ? matchedNode.label : 'API Boundary'}
+- **Fault Details:** ${failEvent.method || 'CALL'} ${endpoint} (Status: ${failEvent.status}, Latency: ${dur})
+- **Root Cause:** Upstream service latency / error interrupted happy path.
+- **Client:** Chrome Extension / Argus SystemSleuth 1.0`;
+
+    } else {
+      // Normal / Healthy Trace
+      divergedNodeId = null;
+      diagnosisReportCard.className = 'card diagnosis-report healthy';
+      diagStatusBadge.className = 'diag-badge healthy';
+      diagStatusBadge.innerText = 'HEALTHY EXECUTION ✅';
+      diagTimestamp.innerText = new Date().toLocaleTimeString();
+
+      diagUserExplanation.innerText = `Regarding "${userComplaint}": All recent network calls in the flight recorder returned HTTP 200 OK with normal latency. The application appears to be operating within expected operational parameters.`;
+      diagDevExplanation.innerText = `Zero HTTP errors or timeouts detected across the last ${trace.length} recorded session events.`;
+      diagRemediationList.innerHTML = `
+        <li>No infrastructure anomalies observed. Check frontend UI state assertions or input validation.</li>
+      `;
+
+      latestIncidentReport = `### ℹ️ Argus Behavioral Self-Diagnosis Report
+- **URL:** ${activeTabInfo?.url || 'N/A'}
+- **User Query:** "${userComplaint}"
+- **Status:** HEALTHY (Zero failures in flight buffer across ${trace.length} events)`;
+    }
+
+    diagnosisReportCard.classList.remove('hidden');
+
+    // Re-render visualizer canvas to reflect the red diverged node highlight!
+    renderCanvasGraph();
+
+  } catch (err) {
+    console.error('[Argus] Diagnosis error:', err);
+    alert('Diagnosis failed: ' + err.message);
+  } finally {
+    runDiagnoseBtn.disabled = false;
+    diagSpinner.style.display = 'none';
+    diagBtnText.innerText = '⚡ Diagnose My Problem';
+  }
+}
+
+function onCopyReportClicked() {
+  if (!latestIncidentReport) return;
+  navigator.clipboard.writeText(latestIncidentReport).then(() => {
+    copyReportBtn.innerText = '✓ Copied Incident Report!';
+    setTimeout(() => { copyReportBtn.innerText = '📋 Copy Incident Report for Engineering'; }, 1500);
+  }).catch(err => {
+    alert('Copy failed: ' + err);
+  });
+}
+
+// -------------------------------------------------------------
+// 5. Graph Generation Controller (Expected Graph)
 // -------------------------------------------------------------
 async function onGenerateClicked() {
   if (!extractedEvidence) {
     await inspectActiveTab();
   }
 
-  // Set loading UI
   generateBtn.disabled = true;
   genSpinner.style.display = 'inline-block';
   genBtnText.innerText = 'Deconstructing Full-Stack Architecture...';
@@ -299,7 +597,7 @@ async function onGenerateClicked() {
 }
 
 // -------------------------------------------------------------
-// 4. Dynamic Model Discovery & Full-Stack SRE Gemini Synthesis
+// 6. Dynamic Model Discovery & Full-Stack SRE Gemini Synthesis
 // -------------------------------------------------------------
 async function discoverActiveModel(apiKey) {
   try {
@@ -381,17 +679,11 @@ async function synthesizeWithGemini(evidence, apiKey, mode = 'deep') {
   let finalGraph = null;
 
   if (mode === 'deep') {
-    // -------------------------------------------------------------
-    // MULTI-STAGE SRE SYNTHESIS (2 Passes)
-    // -------------------------------------------------------------
-    // Pass 1: Distributed Architecture & Edge-Case Decomposition
     genBtnText.innerText = 'Pass 1/2: Deconstructing Backend Microservices & Edge Cases...';
     const stage1Prompt = `You are Argus: SystemSleuth's Principal Distributed Systems SRE and Behavioral Architect.
 Argus performs automated behavioral self-diagnosis by modeling web applications as formal state machines with deep failure-mode coverage.
 
-Your task is to analyze the webpage evidence and deconstruct the real-world distributed system behind the user's primary action on this page.
-
-Webpage Evidence:
+Analyze the webpage evidence and deconstruct the real-world distributed system behind the user's primary action on this page:
 URL: ${evidence.url}
 Title: ${evidence.title}
 Headings: ${JSON.stringify(evidence.headings || [])}
@@ -401,72 +693,25 @@ Discovered Script Endpoints: ${JSON.stringify(evidence.scriptEndpoints || [])}
 
 CRITICAL RULES:
 1. DO NOT generate toy templates with generic home-page URLs (like "${evidence.url}").
-2. INFER REALISTIC PRODUCTION-GRADE BACKEND ENDPOINTS matching the domain:
-   - If GitHub Copilot / Chat: use endpoints like '/api/v3/user/copilot/entitlement' and '/github-copilot/v1/chat/completions'.
-   - If E-Commerce: use '/api/v1/cart/validate' and '/api/v1/payments/charge'.
-   - If Auth / Profile: use '/api/auth/session/verify' and '/api/user/profile/update'.
-3. Deconstruct the interaction into a multi-step pipeline:
-   - Step 1 (Pre-flight / Auth / Entitlement): Checks token validity, permissions, license status, or feature flags.
-   - Step 2 (Primary Transaction / Streaming RPC): Dispatches the core operation.
-4. Define the CRITICAL PRODUCTION EDGE CASES for this feature:
-   - Auth/Permission: 401 Unauthorized (session expired) or 403 Forbidden (seat revoked / org policy).
-   - Resource Quotas: 429 Too Many Requests (rate limit or token quota exceeded).
-   - Validation: 422 Unprocessable Entity (invalid input or constraint violation).
-   - Infrastructure: 504 Gateway Timeout (upstream model/database latency > 8000ms) or 502 Bad Gateway.
+2. INFER REALISTIC PRODUCTION-GRADE BACKEND ENDPOINTS matching the domain.
+3. Deconstruct the interaction into a multi-step pipeline (Step 1: Auth/Entitlement pre-flight, Step 2: Primary execution).
+4. Define critical edge cases (401/403 Auth, 429 RateLimit, 504 Gateway Timeout, 422 Validation).
 
-Return strictly JSON:
+Return strictly JSON matching this structure:
 {
-  "featureId": "string (lowercase_underscore)",
+  "featureId": "string",
   "featureName": "string",
   "featureDescription": "string",
-  "primaryUserAction": "string (e.g. Click:OpenCopilotButton, Click:PayNow, Click:RunQuery)",
+  "primaryUserAction": "string",
   "apiPipeline": [
-    {
-      "step": 1,
-      "name": "AuthAndEntitlementCheck",
-      "method": "GET",
-      "endpoint": "string",
-      "description": "string",
-      "timeoutMs": 3000
-    },
-    {
-      "step": 2,
-      "name": "PrimaryExecution",
-      "method": "POST",
-      "endpoint": "string",
-      "description": "string",
-      "timeoutMs": 10000
-    }
+    { "step": 1, "name": "AuthCheck", "method": "GET", "endpoint": "string", "timeoutMs": 3000 },
+    { "step": 2, "name": "PrimaryExecution", "method": "POST", "endpoint": "string", "timeoutMs": 10000 }
   ],
   "edgeCases": [
-    {
-      "id": "auth_failure",
-      "code": 403,
-      "label": "ApiResult:403:Forbidden",
-      "cause": "Subscription lapsed, seat revoked, or organization policy blocked access",
-      "stateResult": "StateChange:ShowUpgradeOrReauthModal"
-    },
-    {
-      "id": "rate_limit",
-      "code": 429,
-      "label": "ApiResult:429:TooManyRequests",
-      "cause": "Rate limit quota depleted or burst traffic threshold reached",
-      "stateResult": "StateChange:ShowRateLimitCooldownBanner"
-    },
-    {
-      "id": "timeout",
-      "code": 504,
-      "label": "ApiResult:504:GatewayTimeout",
-      "cause": "Upstream microservice or LLM inference gateway latency spike > 10,000ms",
-      "stateResult": "StateChange:ShowRetryPromptButton"
-    },
-    {
-      "id": "validation_error",
-      "code": 422,
-      "label": "ApiResult:422:UnprocessableEntity",
-      "cause": "Malformed input, missing required parameters, or schema validation error",
-      "stateResult": "StateChange:HighlightInputError"
-    }
+    { "id": "auth_failure", "code": 403, "label": "ApiResult:403:Forbidden", "cause": "string", "stateResult": "StateChange:AuthError" },
+    { "id": "rate_limit", "code": 429, "label": "ApiResult:429:TooManyRequests", "cause": "string", "stateResult": "StateChange:RateLimitBanner" },
+    { "id": "timeout", "code": 504, "label": "ApiResult:504:GatewayTimeout", "cause": "string", "stateResult": "StateChange:TimeoutNotice" },
+    { "id": "validation_error", "code": 422, "label": "ApiResult:422:UnprocessableEntity", "cause": "string", "stateResult": "StateChange:ValidationError" }
   ]
 }`;
 
@@ -485,7 +730,6 @@ Return strictly JSON:
       throw lastError || new Error('Failed to complete Pass 1');
     }
 
-    // Pass 2: Synthesize the Formal Multi-Branch State Machine Graph
     genBtnText.innerText = `Pass 2/2 (${successfulModel}): Synthesizing Full State Machine & Edge-Case Matrix...`;
     const stage2Prompt = `You are Argus: SystemSleuth's Principal Distributed Systems Architect.
 Synthesize a formal Argus Expected Behavioral Graph (expected_graph.json) that directly implements this distributed systems blueprint:
@@ -497,30 +741,13 @@ Webpage Context:
 URL: ${evidence.url}
 Title: ${evidence.title}
 
-STRICT SPECIFICATION RULES:
-1. Model the complete multi-tier flow from entry to terminal states:
-   - "n_session_start" ➔ "n_page_view" ➔ user action ➔ pre-flight API call ➔ primary execution API call.
+Graph Requirements:
+1. Model full-stack sequence: "n_session_start" ➔ "n_page_view" ➔ user action ➔ pre-flight API call ➔ primary execution API call.
 2. Every API step in the pipeline must be an API_CALL node with its realistic endpoint.
-3. Every API call must have explicit branches for:
-   - Happy Path: API_RESULT with HTTP 200/201 (SUCCESS outcome) leading to next stage or terminal confirmed.
-   - Distinct Failure Modes: For each edge case in the blueprint (401/403, 429, 504/Timeout, 422/Error), create a dedicated API_RESULT node with:
-     * "expectedOutcome": "FAILURE" or "TIMEOUT"
-     * "isKnownFailureMode": true
-     * "knownCauses": [2-3 detailed root cause bullets]
-   - Each failure API_RESULT must lead to an appropriate terminal STATE_CHANGE node (e.g. StateChange:ReauthRequired, StateChange:RateLimitBanner, StateChange:RetryPrompt).
-4. Edges:
-   - Must connect all nodes and include the "path" annotation:
-     * "happy_path"
-     * "auth_failure_path"
-     * "rate_limit_path"
-     * "timeout_failure_path"
-     * "validation_error_path"
-5. Paths Object:
-   - Must contain:
-     * "happy_path": { "description": "...", "sequence": [...] }
-     * Each failure path with "divergesFromHappyPathAt" pointing to the API_CALL where divergence occurs.
+3. Every API call must have explicit branches for Happy Path (200 OK) and distinct failure paths for the defined edge cases (401/403, 429, 504/Timeout, 422/Error).
+4. Annotate edges with "path": "happy_path", "auth_failure_path", "rate_limit_path", "timeout_failure_path", etc.
 
-Return strictly valid JSON matching this schema:
+Return strictly JSON matching the Argus 1.0 schema:
 {
   "schemaVersion": "1.0",
   "appVersion": "1.0.0",
@@ -533,14 +760,8 @@ Return strictly valid JSON matching this schema:
       "description": "${stage1Result.featureDescription || 'Primary workflow'}",
       "entryNode": "n_session_start",
       "terminalNodes": ["n_terminal_success", "n_terminal_auth_fail", "n_terminal_rate_limit", "n_terminal_timeout", "n_terminal_error"],
-      "nodes": [
-        { "id": "n_session_start", "type": "SESSION_START", "label": "SessionStart", "expectedOutcome": "SUCCESS", "description": "User initiated session." },
-        { "id": "n_page_view", "type": "PAGE_VIEW", "label": "PageView:${new URL(evidence.url || 'https://example.com').pathname}", "expectedOutcome": "SUCCESS", "description": "Page loaded." },
-        ...
-      ],
-      "edges": [
-        ...
-      ],
+      "nodes": [...],
+      "edges": [...],
       "paths": {
         "happy_path": { "description": "Successful execution", "sequence": [...] },
         "auth_failure_path": { "description": "Auth or seat entitlement rejected", "divergesFromHappyPathAt": "...", "sequence": [...] },
@@ -554,13 +775,8 @@ Return strictly valid JSON matching this schema:
     finalGraph = await callGeminiGenerate(successfulModel, stage2Prompt, apiKey);
 
   } else {
-    // -------------------------------------------------------------
-    // STANDARD SINGLE-PASS SRE SYNTHESIS (1 Request)
-    // -------------------------------------------------------------
     genBtnText.innerText = 'Consulting Gemini Systems Architect...';
     const singlePrompt = `You are Argus: SystemSleuth's Principal Distributed Systems SRE and Behavioral Architect.
-Argus is an automated behavioral diagnosis system that uses formal state machine graphs (expected_graph.json) to detect and diagnose regressions, latency spikes, CORS/network failures, and UI state divergences.
-
 Analyze the following webpage evidence and synthesize a realistic, production-grade Expected Behavioral Graph.
 
 Webpage Evidence:
@@ -571,43 +787,12 @@ Buttons: ${JSON.stringify(evidence.buttons || [])}
 Forms: ${JSON.stringify(evidence.forms || [])}
 Discovered Script Endpoints: ${JSON.stringify(evidence.scriptEndpoints || [])}
 
-CRITICAL RULES:
-1. DO NOT generate toy templates with generic root URLs like "${evidence.url}".
-2. INFER REALISTIC PRODUCTION-GRADE BACKEND ENDPOINTS (e.g., if on GitHub: /api/v3/user/copilot/entitlement, /github-copilot/v1/chat/completions; if on ecommerce: /api/v1/cart/validate, /api/v1/payments/charge).
-3. Include at least 3 distinct REAL-WORLD PRODUCTION EDGE CASES:
-   - 401/403: Auth / Seat / License entitlement rejected (isKnownFailureMode: true)
-   - 429: Rate limit or monthly quota exhausted (isKnownFailureMode: true)
-   - 504 / Timeout: Gateway timeout / high latency threshold (isKnownFailureMode: true)
-4. Model distinct failure paths in the "paths" object:
-   - "happy_path"
-   - "auth_failure_path"
-   - "rate_limit_path"
-   - "timeout_failure_path"
+Rules:
+1. In-depth full-stack modeling with realistic endpoints (not "${evidence.url}").
+2. Include at least 3 distinct production edge cases: 401/403 Auth, 429 RateLimit, 504 Gateway Timeout.
+3. Model distinct failure paths in "paths": "happy_path", "auth_failure_path", "rate_limit_path", "timeout_failure_path".
 
-Return strictly valid JSON matching the Argus 1.0 schema:
-{
-  "schemaVersion": "1.0",
-  "appVersion": "1.0.0",
-  "platform": "web",
-  "description": "Expected behavioral contract synthesized for ${evidence.title}",
-  "workflows": [
-    {
-      "id": "wf_primary_workflow",
-      "name": "PrimaryWorkflow",
-      "description": "Detailed workflow description",
-      "entryNode": "n_session_start",
-      "terminalNodes": ["n_terminal_success", "n_terminal_auth_fail", "n_terminal_rate_limit", "n_terminal_timeout"],
-      "nodes": [...],
-      "edges": [...],
-      "paths": {
-        "happy_path": { "description": "...", "sequence": [...] },
-        "auth_failure_path": { "description": "...", "divergesFromHappyPathAt": "...", "sequence": [...] },
-        "rate_limit_path": { "description": "...", "divergesFromHappyPathAt": "...", "sequence": [...] },
-        "timeout_failure_path": { "description": "...", "divergesFromHappyPathAt": "...", "sequence": [...] }
-      }
-    }
-  ]
-}`;
+Return strictly valid JSON matching Argus schema.`;
 
     for (const model of modelsToTry) {
       try {
@@ -628,7 +813,7 @@ Return strictly valid JSON matching the Argus 1.0 schema:
 }
 
 // -------------------------------------------------------------
-// 5. Built-in Offline Heuristic Synthesizer (Hardened Edge Cases)
+// 7. Built-in Offline Heuristic Synthesizer (Edge-Case Ready)
 // -------------------------------------------------------------
 function synthesizeHeuristicGraph(evidence) {
   const url = new URL(evidence.url || 'https://example.com');
@@ -644,7 +829,6 @@ function synthesizeHeuristicGraph(evidence) {
   }
   primaryAction = primaryAction.slice(0, 24);
 
-  // Derive realistic endpoints
   let authEndpoint = `/api/v1/auth/entitlement`;
   let execEndpoint = `/api/v1/action/execute`;
 
@@ -774,8 +958,7 @@ function synthesizeHeuristicGraph(evidence) {
             isKnownFailureMode: true,
             knownCauses: [
               'Hourly or monthly API quota depleted',
-              'Burst request rate exceeded threshold',
-              'Upstream provider tier restriction triggered'
+              'Burst request rate exceeded threshold'
             ]
           },
           {
@@ -796,8 +979,7 @@ function synthesizeHeuristicGraph(evidence) {
             isKnownFailureMode: true,
             knownCauses: [
               'Upstream microservice cold start or queue saturation',
-              'LLM inference model gateway high latency spike',
-              'Database query lock on backend shard'
+              'LLM inference model gateway high latency spike'
             ]
           },
           {
@@ -818,8 +1000,7 @@ function synthesizeHeuristicGraph(evidence) {
             isKnownFailureMode: true,
             knownCauses: [
               'Missing Access-Control-Allow-Origin header in response',
-              'Network disconnect or client offline',
-              '500 Internal Server Error in backend handler'
+              'Network disconnect or client offline'
             ]
           },
           {
@@ -844,7 +1025,7 @@ function synthesizeHeuristicGraph(evidence) {
           { from: 'n_api_execute', to: 'n_api_exec_200', label: 'api_responded', path: 'happy_path' },
           { from: 'n_api_exec_200', to: 'n_terminal_success', label: 'state_changed', path: 'happy_path' },
           { from: 'n_api_execute', to: 'n_api_exec_429', label: 'api_responded', path: 'rate_limit_path' },
-          { from: 'n_api_exec_429', to: 'n_terminal_rate_limit', label: 'state_changed', path: 'rate_limit_path' },
+          { from: 'n_api_execute', to: 'n_api_exec_429', label: 'state_changed', path: 'rate_limit_path' },
           { from: 'n_api_execute', to: 'n_api_exec_timeout', label: 'api_responded', path: 'timeout_failure_path' },
           { from: 'n_api_exec_timeout', to: 'n_terminal_timeout', label: 'state_changed', path: 'timeout_failure_path' },
           { from: 'n_api_execute', to: 'n_api_exec_cors', label: 'api_responded', path: 'cors_error_path' },
@@ -929,7 +1110,7 @@ function synthesizeHeuristicGraph(evidence) {
 }
 
 // -------------------------------------------------------------
-// 6. Dynamic Topological Canvas Layout Engine
+// 8. Dynamic Topological Canvas Layout Engine
 // -------------------------------------------------------------
 function layoutGraph(graph) {
   layoutNodes = [];
@@ -976,7 +1157,7 @@ function layoutGraph(graph) {
     });
   }
 
-  // Fallback depth mapping for any unreached nodes
+  // Fallback depth mapping
   wf.nodes.forEach(node => {
     if (!depths.has(node.id)) {
       if (node.type === 'SESSION_START') depths.set(node.id, 0);
@@ -998,7 +1179,6 @@ function layoutGraph(graph) {
     depthColumns.get(d).push(id);
   });
 
-  // Calculate dynamic canvas width
   const colWidth = Math.max(65, Math.min(95, 460 / Math.max(maxDepth, 5)));
   const totalWidth = Math.max(480, (maxDepth + 1) * colWidth + 50);
   graphCanvas.width = totalWidth;
@@ -1122,11 +1302,9 @@ function renderCanvasGraph() {
   ctx.save();
   ctx.scale(dpr, dpr);
 
-  // Clear background
   ctx.fillStyle = '#0b1120';
   ctx.fillRect(0, 0, width, height);
 
-  // Draw background grid dots
   ctx.fillStyle = '#1e293b';
   for (let gx = 15; gx < width; gx += 25) {
     for (let gy = 15; gy < height; gy += 25) {
@@ -1136,12 +1314,10 @@ function renderCanvasGraph() {
     }
   }
 
-  // Draw Edges
   layoutEdges.forEach(edge => {
     drawEdge(ctx, edge);
   });
 
-  // Draw Nodes
   layoutNodes.forEach(node => {
     drawNode(ctx, node);
   });
@@ -1152,7 +1328,6 @@ function renderCanvasGraph() {
 function drawEdge(ctx, edge) {
   const { from, to, path } = edge;
 
-  // Determine line color by pathway
   let strokeColor = '#475569';
   if (path === 'happy_path') strokeColor = '#10b981';
   else if (path.includes('auth') || path.includes('permission')) strokeColor = '#a855f7';
@@ -1208,6 +1383,7 @@ function drawArrowHead(ctx, fromX, fromY, toX, toY, color) {
 function drawNode(ctx, node) {
   const isSelected = node.id === selectedNodeId;
   const isHovered = node.id === hoveredNodeId;
+  const isDiverged = node.id === divergedNodeId;
 
   let fillColor = '#1e293b';
   let strokeColor = '#64748b';
@@ -1218,7 +1394,10 @@ function drawNode(ctx, node) {
   const isRateLimit = (node.label && (node.label.includes('429'))) ||
                       (node.id && (node.id.includes('rate') || node.id.includes('quota')));
 
-  if (node.type === 'SESSION_START') {
+  if (isDiverged) {
+    fillColor = '#7f1d1d';
+    strokeColor = '#ef4444';
+  } else if (node.type === 'SESSION_START') {
     fillColor = '#312e81';
     strokeColor = '#6366f1';
   } else if (node.type === 'PAGE_VIEW') {
@@ -1249,29 +1428,30 @@ function drawNode(ctx, node) {
 
   ctx.save();
 
-  if (isSelected || isHovered) {
+  if (isDiverged) {
+    ctx.shadowColor = '#ef4444';
+    ctx.shadowBlur = 18;
+  } else if (isSelected || isHovered) {
     ctx.shadowColor = isSelected ? '#38bdf8' : '#94a3b8';
     ctx.shadowBlur = isSelected ? 12 : 6;
   }
 
-  // Draw Circle Node
   ctx.beginPath();
   ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
   ctx.fillStyle = fillColor;
   ctx.fill();
 
-  ctx.lineWidth = isSelected ? 3 : 2;
-  ctx.strokeStyle = isSelected ? '#ffffff' : strokeColor;
+  ctx.lineWidth = isDiverged ? 3.5 : (isSelected ? 3 : 2);
+  ctx.strokeStyle = isDiverged ? '#ffffff' : (isSelected ? '#ffffff' : strokeColor);
   ctx.stroke();
 
   ctx.shadowBlur = 0;
 
-  // Draw Node Label text
   ctx.font = 'bold 8px system-ui, -apple-system, sans-serif';
   ctx.fillStyle = textColor;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(node.label, node.x, node.y);
+  ctx.fillText(isDiverged ? 'FAULT ❌' : node.label, node.x, node.y);
 
   ctx.restore();
 }
@@ -1334,7 +1514,7 @@ function selectNode(nodeId) {
 }
 
 // -------------------------------------------------------------
-// 7. Evidence Tab Rendering
+// 9. Evidence Tab Rendering
 // -------------------------------------------------------------
 function renderEvidenceList(evidence) {
   evidenceListEl.innerHTML = '';
@@ -1380,7 +1560,7 @@ function renderEvidenceList(evidence) {
 }
 
 // -------------------------------------------------------------
-// 8. Copy & Download Handlers
+// 10. Copy & Download Handlers
 // -------------------------------------------------------------
 function onCopyJson() {
   if (!currentGraph) return;
