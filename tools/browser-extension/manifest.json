@@ -5,6 +5,7 @@
   "description": "Generate and visualize Argus Expected Behavioral Graphs (expected_graph.json) from any website using hybrid AI synthesis.",
   "permissions": [
     "activeTab",
+    "tabs",
     "scripting",
     "storage"
   ],

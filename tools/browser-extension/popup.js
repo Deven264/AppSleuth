@@ -192,27 +192,57 @@ function hideApiNotice() {
   apiStatusNotice.classList.add('hidden');
 }
 
+function isRestrictedUrl(url) {
+  if (!url || typeof url !== 'string') return true;
+  return url.startsWith('chrome://') ||
+         url.startsWith('chrome-extension://') ||
+         url.startsWith('edge://') ||
+         url.startsWith('about:') ||
+         url.startsWith('view-source:');
+}
+
+function safeParseUrl(rawUrl, fallback = 'https://example.com') {
+  try {
+    const parsed = new URL(rawUrl || fallback);
+    return {
+      url: parsed.href,
+      origin: parsed.origin,
+      pathname: parsed.pathname || '/'
+    };
+  } catch {
+    return {
+      url: fallback,
+      origin: fallback,
+      pathname: '/'
+    };
+  }
+}
+
 // -------------------------------------------------------------
 // 2. Active Tab Inspection & Recorder Injection
 // -------------------------------------------------------------
 async function inspectActiveTab() {
   try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tab = tabs && tabs[0];
     if (!tab) {
       pageTitleEl.innerText = 'No active tab found';
       return;
     }
 
     activeTabInfo = tab;
-    pageTitleEl.innerText = tab.title || 'Web Application';
-    pageUrlEl.innerText = tab.url || 'Unknown URL';
+    const tabUrl = tab.url || '';
+    const tabTitle = tab.title || 'Web Application';
 
-    if (tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
+    pageTitleEl.innerText = tabTitle;
+    pageUrlEl.innerText = tabUrl || 'chrome://extensions';
+
+    if (isRestrictedUrl(tabUrl)) {
       pageTitleEl.innerText = 'Browser System Page';
-      pageUrlEl.innerText = tab.url;
+      pageUrlEl.innerText = tabUrl || 'chrome://...';
       pageUrlEl.style.color = '#f59e0b';
       nodeInfoTitle.innerText = 'System Page Detected';
-      nodeInfoDesc.innerText = 'Browser system pages are restricted. Please navigate to any web application to inspect and diagnose its behavioral graph.';
+      nodeInfoDesc.innerText = 'Browser internal pages (like extensions or settings) are restricted by Chrome security. Open any web application to inspect and diagnose its behavioral graph.';
       generateBtn.disabled = true;
       generateBtn.title = 'Cannot inspect internal browser system pages.';
       return;
@@ -239,11 +269,12 @@ async function inspectActiveTab() {
     }
   } catch (err) {
     console.warn('Could not inject content script:', err);
-    if (activeTabInfo) {
+    if (activeTabInfo && activeTabInfo.url && !isRestrictedUrl(activeTabInfo.url)) {
+      const parsed = safeParseUrl(activeTabInfo.url);
       extractedEvidence = {
-        url: activeTabInfo.url,
-        origin: new URL(activeTabInfo.url).origin,
-        pathname: new URL(activeTabInfo.url).pathname,
+        url: parsed.url,
+        origin: parsed.origin,
+        pathname: parsed.pathname,
         title: activeTabInfo.title || 'Web Application',
         headings: [activeTabInfo.title || 'Web Application'],
         buttons: [{ label: 'Primary Action' }],
@@ -256,8 +287,9 @@ async function inspectActiveTab() {
 }
 
 function updatePageCardWithEvidence(evidence) {
+  if (!evidence) return;
   pageTitleEl.innerText = evidence.title || 'Web Application';
-  pageUrlEl.innerText = evidence.url;
+  pageUrlEl.innerText = evidence.url || '';
   btnCountEl.innerText = evidence.buttons ? evidence.buttons.length : 0;
   formCountEl.innerText = evidence.forms ? evidence.forms.length : 0;
   endpointCountEl.innerText = evidence.scriptEndpoints ? evidence.scriptEndpoints.length : 0;
@@ -268,6 +300,8 @@ function updatePageCardWithEvidence(evidence) {
 // -------------------------------------------------------------
 async function updateFlightRecorderData() {
   if (!activeTabInfo || !activeTabInfo.id) return [];
+  const tabUrl = activeTabInfo.url || '';
+  if (isRestrictedUrl(tabUrl)) return [];
 
   try {
     const results = await chrome.scripting.executeScript({
