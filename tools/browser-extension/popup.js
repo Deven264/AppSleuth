@@ -238,12 +238,14 @@ function safeParseUrl(rawUrl, fallback = 'https://example.com') {
     return {
       url: parsed.href,
       origin: parsed.origin,
+      hostname: parsed.hostname || 'example.com',
       pathname: parsed.pathname || '/'
     };
   } catch {
     return {
       url: fallback,
       origin: fallback,
+      hostname: 'example.com',
       pathname: '/'
     };
   }
@@ -1106,7 +1108,7 @@ function synthesizeHeuristicGraph(evidence, trace = []) {
     schemaVersion: '1.0',
     appVersion: '1.0.0',
     platform: 'web',
-    description: `Full-stack behavioral contract synthesized for ${evidence.title || url.hostname}.`,
+    description: `Full-stack behavioral contract synthesized for ${evidence.title || parsedUrl.hostname}.`,
     workflows: [
       {
         id: workflowId,
@@ -1120,7 +1122,7 @@ function synthesizeHeuristicGraph(evidence, trace = []) {
             type: 'SESSION_START',
             label: 'SessionStart',
             expectedOutcome: 'SUCCESS',
-            description: `Session initialized on ${url.origin}. Argus telemetry active.`
+            description: `Session initialized on ${parsedUrl.origin}. Argus telemetry active.`
           },
           {
             id: 'n_page_view',
