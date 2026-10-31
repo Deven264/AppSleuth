@@ -45,6 +45,7 @@ const tabButtons = document.querySelectorAll('.tab-btn');
 const tabVisualizer = document.getElementById('tabVisualizer');
 const tabDiagnose = document.getElementById('tabDiagnose');
 const tabTrace = document.getElementById('tabTrace');
+const tabSettings = document.getElementById('tabSettings');
 const tabJson = document.getElementById('tabJson');
 const tabEvidence = document.getElementById('tabEvidence');
 
@@ -124,11 +125,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       btn.classList.add('active');
 
       const target = btn.dataset.tab;
-      tabVisualizer.classList.toggle('hidden', target !== 'visualizer');
+      if (tabVisualizer) tabVisualizer.classList.toggle('hidden', target !== 'visualizer');
       if (tabDiagnose) tabDiagnose.classList.toggle('hidden', target !== 'diagnose');
       if (tabTrace) tabTrace.classList.toggle('hidden', target !== 'trace');
-      tabJson.classList.toggle('hidden', target !== 'json');
-      tabEvidence.classList.toggle('hidden', target !== 'evidence');
+      if (tabSettings) tabSettings.classList.toggle('hidden', target !== 'settings');
+      if (tabJson) tabJson.classList.toggle('hidden', target !== 'json');
+      if (tabEvidence) tabEvidence.classList.toggle('hidden', target !== 'evidence');
 
       if (target === 'visualizer') {
         renderCanvasGraph();
@@ -164,6 +166,22 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Fetch initial flight trace in background
   await updateFlightRecorderData();
+
+  // Pre-synthesize initial heuristic graph so Visualizer and Diagnosis are instant
+  if (extractedEvidence && !currentGraph && !isRestrictedUrl(activeTabInfo?.url)) {
+    try {
+      currentGraph = synthesizeHeuristicGraph(extractedEvidence);
+      layoutGraph(currentGraph);
+      if (jsonOutputEl && jsonOutputEl.querySelector('code')) {
+        jsonOutputEl.querySelector('code').textContent = JSON.stringify(currentGraph, null, 2);
+      }
+      renderEvidenceList(extractedEvidence);
+      const firstNode = currentGraph.workflows[0]?.nodes[0];
+      if (firstNode) selectNode(firstNode.id);
+    } catch (e) {
+      console.warn('Pre-synthesis notice:', e);
+    }
+  }
 });
 
 function updateEngineBadge(hasKey) {
@@ -591,7 +609,9 @@ async function onGenerateClicked() {
     currentGraph = graph;
 
     // Display Results
-    resultsSection.classList.remove('hidden');
+    if (resultsSection) {
+      resultsSection.classList.remove('hidden');
+    }
 
     // Populate JSON Spec
     jsonOutputEl.querySelector('code').textContent = JSON.stringify(currentGraph, null, 2);

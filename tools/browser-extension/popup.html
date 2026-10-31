@@ -12,7 +12,7 @@
       <span class="logo-icon">👁️</span>
       <div>
         <h1 class="logo-title">Argus: SystemSleuth</h1>
-        <p class="logo-subtitle">Behavioral Graph Generator</p>
+        <p class="logo-subtitle">AI Behavioral Self-Diagnosis</p>
       </div>
     </div>
     <span class="badge" id="modelBadge">Hybrid Engine</span>
@@ -31,11 +31,96 @@
       </div>
     </div>
 
-    <!-- AI Settings (Collapsible) -->
-    <details class="settings-details">
-      <summary class="settings-summary">⚙️ AI Model Configuration (Optional Gemini Key)</summary>
-      <div class="settings-content">
-        <label for="apiKeyInput" class="input-label">Google Gemini API Key (for deep LLM reasoning):</label>
+    <!-- Main Navigation Tabs (Always Visible) -->
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="diagnose">🔬 Self-Diagnosis</button>
+      <button class="tab-btn" data-tab="visualizer">📊 Visualizer</button>
+      <button class="tab-btn" data-tab="trace">📡 Flight Trace (<span id="traceCountBadge">0</span>)</button>
+      <button class="tab-btn" data-tab="settings">⚙️ Settings & Spec</button>
+    </div>
+
+    <!-- TAB 1: Self-Diagnosis (Default Active) -->
+    <div class="tab-content" id="tabDiagnose">
+      <div class="card diagnose-card">
+        <label for="userProblemInput" class="input-label" style="font-weight: 700; color: #f1f5f9; display: block; margin-bottom: 6px;">
+          What problem did you encounter on this page?
+        </label>
+        <textarea id="userProblemInput" class="problem-textarea" rows="3" placeholder="e.g. I clicked 'Confirm', but it got stuck on loading and my order was never placed..."></textarea>
+        <button id="runDiagnoseBtn" class="btn btn-primary btn-generate" style="margin-top: 8px;">
+          <span class="btn-spinner" id="diagSpinner"></span>
+          <span id="diagBtnText">⚡ Diagnose My Problem</span>
+        </button>
+      </div>
+
+      <!-- Diagnosis Report Card (Shown after diagnosis) -->
+      <div id="diagnosisReportCard" class="card diagnosis-report hidden">
+        <div class="diag-header">
+          <span class="diag-badge" id="diagStatusBadge">DIVERGENCE DETECTED</span>
+          <span class="diag-time" id="diagTimestamp">Just now</span>
+        </div>
+        <div class="diag-section">
+          <strong class="diag-title">👤 What Happened (Plain-English):</strong>
+          <p id="diagUserExplanation" class="diag-text"></p>
+        </div>
+        <div class="diag-section">
+          <strong class="diag-title">🛠️ Root Cause (Technical Fault):</strong>
+          <p id="diagDevExplanation" class="diag-text code-font"></p>
+        </div>
+        <div class="diag-section">
+          <strong class="diag-title">💡 Recommended Next Steps:</strong>
+          <ul id="diagRemediationList" class="diag-list"></ul>
+        </div>
+        <button id="copyReportBtn" class="btn btn-secondary" style="margin-top: 10px; width: 100%;">📋 Copy Incident Report for Engineering</button>
+      </div>
+    </div>
+
+    <!-- TAB 2: Visualizer (Canvas Graph) -->
+    <div class="tab-content hidden" id="tabVisualizer">
+      <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+        <button id="generateBtn" class="btn btn-primary" style="flex: 1; padding: 6px 10px; font-size: 11px;">
+          <span class="btn-spinner" id="genSpinner"></span>
+          <span id="genBtnText">⚡ Re-generate Expected Graph</span>
+        </button>
+      </div>
+      <div class="canvas-container">
+        <canvas id="graphCanvas" width="480" height="340"></canvas>
+        <div class="canvas-legend">
+          <span class="leg-item"><span class="dot dot-session"></span>Session</span>
+          <span class="leg-item"><span class="dot dot-screen"></span>Screen</span>
+          <span class="leg-item"><span class="dot dot-action"></span>Action</span>
+          <span class="leg-item"><span class="dot dot-api"></span>API</span>
+          <span class="leg-item"><span class="dot dot-success"></span>Success ✅</span>
+          <span class="leg-item"><span class="dot dot-auth"></span>Auth 401/403 🔒</span>
+          <span class="leg-item"><span class="dot dot-ratelimit"></span>Rate Limit 429 ⏳</span>
+          <span class="leg-item"><span class="dot dot-timeout"></span>Timeout ⏱️</span>
+          <span class="leg-item"><span class="dot dot-fail"></span>Fail 5xx/4xx ❌</span>
+        </div>
+      </div>
+      <div class="node-info-panel" id="nodeInfoPanel">
+        <strong id="nodeInfoTitle">Click any node to inspect details</strong>
+        <p id="nodeInfoDesc" class="node-info-desc">Nodes represent discrete states, user actions, and network boundaries.</p>
+      </div>
+      <div class="footer-actions" style="margin-top: 8px;">
+        <button id="copyJsonBtn" class="btn btn-secondary">📋 Copy JSON</button>
+        <button id="downloadJsonBtn" class="btn btn-secondary">💾 Download expected_graph.json</button>
+      </div>
+    </div>
+
+    <!-- TAB 3: Flight Trace (Rolling In-Memory Buffer) -->
+    <div class="tab-content hidden" id="tabTrace">
+      <div class="trace-header">
+        <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">Rolling Flight Recorder Buffer (Last 50 Events)</span>
+        <button id="refreshTraceBtn" class="btn-refresh" title="Refresh trace">🔄 Refresh</button>
+      </div>
+      <div class="trace-stream" id="flightTraceStream">
+        <div class="trace-empty">No events recorded yet. Interact with the webpage to capture clicks and network calls.</div>
+      </div>
+    </div>
+
+    <!-- TAB 4: Settings & Spec -->
+    <div class="tab-content hidden" id="tabSettings">
+      <div class="card settings-content" style="border: none; padding: 0;">
+        <label for="apiKeyInput" class="input-label">Google Gemini API Key (Optional for Deep AI):</label>
         <div class="input-row">
           <input type="password" id="apiKeyInput" placeholder="AIzaSy... (Leave empty for instant offline engine)" />
           <button id="saveKeyBtn" class="btn btn-secondary">Save</button>
@@ -43,113 +128,22 @@
         <div class="input-row" style="margin-top: 4px;">
           <label for="synthesisMode" class="input-label" style="align-self: center;">Synthesis Mode:</label>
           <select id="synthesisMode" class="select-input">
-            <option value="single">⚡ Standard (1 Request: Fast Contract)</option>
             <option value="deep">🔬 Deep Multi-Stage (2 Requests: Intent + Failure Matrix)</option>
+            <option value="single">⚡ Standard (1 Request: Fast Contract)</option>
           </select>
         </div>
         <div id="apiStatusNotice" class="status-notice hidden"></div>
         <p class="settings-hint">Without an API key, Argus uses its built-in heuristic behavioral engine (100% offline & instant).</p>
       </div>
-    </details>
 
-    <!-- Action Button -->
-    <button id="generateBtn" class="btn btn-primary btn-generate">
-      <span class="btn-spinner" id="genSpinner"></span>
-      <span id="genBtnText">⚡ Generate Expected Graph</span>
-    </button>
-
-    <!-- Results Section (Visible after generation) -->
-    <div id="resultsSection" class="results-section hidden">
-      <!-- Tabs -->
-      <div class="tabs">
-        <button class="tab-btn active" data-tab="visualizer">📊 Visualizer</button>
-        <button class="tab-btn" data-tab="diagnose">🔬 Self-Diagnosis</button>
-        <button class="tab-btn" data-tab="trace">📡 Flight Trace (<span id="traceCountBadge">0</span>)</button>
-        <button class="tab-btn" data-tab="json">📄 JSON Spec</button>
-        <button class="tab-btn" data-tab="evidence">🔍 Evidence</button>
-      </div>
-
-      <!-- Tab Content: Visualizer -->
-      <div class="tab-content" id="tabVisualizer">
-        <div class="canvas-container">
-          <canvas id="graphCanvas" width="480" height="340"></canvas>
-          <div class="canvas-legend">
-            <span class="leg-item"><span class="dot dot-session"></span>Session</span>
-            <span class="leg-item"><span class="dot dot-screen"></span>Screen</span>
-            <span class="leg-item"><span class="dot dot-action"></span>Action</span>
-            <span class="leg-item"><span class="dot dot-api"></span>API</span>
-            <span class="leg-item"><span class="dot dot-success"></span>Success ✅</span>
-            <span class="leg-item"><span class="dot dot-auth"></span>Auth 401/403 🔒</span>
-            <span class="leg-item"><span class="dot dot-ratelimit"></span>Rate Limit 429 ⏳</span>
-            <span class="leg-item"><span class="dot dot-timeout"></span>Timeout ⏱️</span>
-            <span class="leg-item"><span class="dot dot-fail"></span>Fail 5xx/4xx ❌</span>
-          </div>
-        </div>
-        <div class="node-info-panel" id="nodeInfoPanel">
-          <strong id="nodeInfoTitle">Click any node to inspect details</strong>
-          <p id="nodeInfoDesc" class="node-info-desc">Nodes represent discrete states, user actions, and network boundaries.</p>
-        </div>
-      </div>
-
-      <!-- Tab Content: Self-Diagnosis -->
-      <div class="tab-content hidden" id="tabDiagnose">
-        <div class="card diagnose-card">
-          <label for="userProblemInput" class="input-label" style="font-weight: 700; color: #f1f5f9; display: block; margin-bottom: 6px;">
-            Explain what went wrong in your own words:
-          </label>
-          <textarea id="userProblemInput" class="problem-textarea" rows="3" placeholder="e.g. I clicked 'Pay Now', but the button stayed disabled and no confirmation ever appeared..."></textarea>
-          <button id="runDiagnoseBtn" class="btn btn-primary" style="margin-top: 8px; width: 100%;">
-            <span class="btn-spinner" id="diagSpinner"></span>
-            <span id="diagBtnText">⚡ Diagnose My Problem</span>
-          </button>
-        </div>
-
-        <div id="diagnosisReportCard" class="card diagnosis-report hidden">
-          <div class="diag-header">
-            <span class="diag-badge" id="diagStatusBadge">DIVERGENCE DETECTED</span>
-            <span class="diag-time" id="diagTimestamp">Just now</span>
-          </div>
-          <div class="diag-section">
-            <strong class="diag-title">👤 What Happened (Plain-English):</strong>
-            <p id="diagUserExplanation" class="diag-text"></p>
-          </div>
-          <div class="diag-section">
-            <strong class="diag-title">🛠️ Root Cause (Technical Fault):</strong>
-            <p id="diagDevExplanation" class="diag-text code-font"></p>
-          </div>
-          <div class="diag-section">
-            <strong class="diag-title">💡 Recommended Next Steps:</strong>
-            <ul id="diagRemediationList" class="diag-list"></ul>
-          </div>
-          <button id="copyReportBtn" class="btn btn-secondary" style="margin-top: 10px; width: 100%;">📋 Copy Incident Report for Engineering</button>
-        </div>
-      </div>
-
-      <!-- Tab Content: Live Flight Trace -->
-      <div class="tab-content hidden" id="tabTrace">
-        <div class="trace-header">
-          <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">Rolling Flight Recorder Buffer (Last 50 Events)</span>
-          <button id="refreshTraceBtn" class="btn-refresh" title="Refresh trace">🔄 Refresh</button>
-        </div>
-        <div class="trace-stream" id="flightTraceStream">
-          <div class="trace-empty">No events recorded yet. Interact with the webpage to capture clicks and network calls.</div>
-        </div>
-      </div>
-
-      <!-- Tab Content: JSON -->
-      <div class="tab-content hidden" id="tabJson">
+      <div style="margin-top: 10px;">
+        <strong class="input-label" style="display: block; margin-bottom: 4px;">Synthesized JSON Contract:</strong>
         <pre class="json-code" id="jsonOutput"><code>{}</code></pre>
       </div>
 
-      <!-- Tab Content: Evidence -->
-      <div class="tab-content hidden" id="tabEvidence">
+      <div style="margin-top: 10px;">
+        <strong class="input-label" style="display: block; margin-bottom: 4px;">Harvested Webpage Evidence:</strong>
         <div class="evidence-list" id="evidenceList"></div>
-      </div>
-
-      <!-- Action Footer -->
-      <div class="footer-actions">
-        <button id="copyJsonBtn" class="btn btn-secondary">📋 Copy JSON</button>
-        <button id="downloadJsonBtn" class="btn btn-secondary">💾 Download expected_graph.json</button>
       </div>
     </div>
   </main>
